@@ -271,7 +271,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     await page.goto('/');
     await page.waitForTimeout(3000);
     const checkboxes = page.locator('.layer-controls-checkbox');
-    expect(await checkboxes.count()).toBe(4);
+    expect(await checkboxes.count()).toBe(5);
     // Labels should include Early Warnings
     const labels = page.locator('.layer-controls-label');
     const texts = await labels.allTextContents();

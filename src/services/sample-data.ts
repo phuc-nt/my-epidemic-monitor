@@ -5,19 +5,56 @@
 import type { DiseaseOutbreakItem, EpidemicStats, NewsItem } from '@/types';
 
 export const SAMPLE_OUTBREAKS: DiseaseOutbreakItem[] = [
+  // TPHCM — district-level dengue data (5 quận nóng nhất)
   {
-    id: 'vn-deng-hcm', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
-    countryCode: 'VN', alertLevel: 'alert', title: 'Dengue Fever — Ho Chi Minh City',
-    summary: 'Số ca sốt xuất huyết tăng mạnh tại TP.HCM, đặc biệt ở các quận 12, Bình Tân, Gò Vấp.',
+    id: 'vn-deng-hcm-q12', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
+    countryCode: 'VN', alertLevel: 'alert', title: 'Dengue — TPHCM Quận 12',
+    summary: 'Quận 12 ghi nhận số ca SXH cao nhất TP.HCM với nhiều ổ dịch tại các khu dân cư.',
     url: 'https://moh.gov.vn', publishedAt: Date.now() - 3600_000,
-    lat: 10.82, lng: 106.63, cases: 4520, deaths: 3,
+    lat: 10.867, lng: 106.654, cases: 1250, deaths: 1, province: 'TP. Hồ Chí Minh', district: 'Quận 12',
   },
   {
-    id: 'vn-deng-hn', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
-    countryCode: 'VN', alertLevel: 'warning', title: 'Dengue Fever — Hanoi',
-    summary: 'Ca mắc sốt xuất huyết gia tăng tại Hà Nội, tập trung ở quận Hoàng Mai, Thanh Xuân.',
+    id: 'vn-deng-hcm-bt', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
+    countryCode: 'VN', alertLevel: 'alert', title: 'Dengue — TPHCM Bình Tân',
+    summary: 'Bình Tân có mật độ dân cư cao, nhiều khu nhà trọ — điều kiện lây lan SXH.',
+    url: 'https://moh.gov.vn', publishedAt: Date.now() - 5400_000,
+    lat: 10.766, lng: 106.604, cases: 980, deaths: 1, province: 'TP. Hồ Chí Minh', district: 'Bình Tân',
+  },
+  {
+    id: 'vn-deng-hcm-gv', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
+    countryCode: 'VN', alertLevel: 'warning', title: 'Dengue — TPHCM Gò Vấp',
+    summary: 'Gò Vấp tăng 45% ca SXH so với cùng kỳ, tập trung ở phường 12, 15.',
     url: 'https://moh.gov.vn', publishedAt: Date.now() - 7200_000,
-    lat: 21.03, lng: 105.85, cases: 1850, deaths: 1,
+    lat: 10.838, lng: 106.665, cases: 720, deaths: 0, province: 'TP. Hồ Chí Minh', district: 'Gò Vấp',
+  },
+  {
+    id: 'vn-deng-hcm-td', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
+    countryCode: 'VN', alertLevel: 'warning', title: 'Dengue — TPHCM TP. Thủ Đức',
+    summary: 'TP. Thủ Đức ghi nhận ca SXH tăng tại khu vực giáp ranh Bình Dương.',
+    url: 'https://moh.gov.vn', publishedAt: Date.now() - 9000_000,
+    lat: 10.851, lng: 106.753, cases: 650, deaths: 0, province: 'TP. Hồ Chí Minh', district: 'TP. Thủ Đức',
+  },
+  {
+    id: 'vn-deng-hcm-bc', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
+    countryCode: 'VN', alertLevel: 'watch', title: 'Dengue — TPHCM Bình Chánh',
+    summary: 'Huyện Bình Chánh ca mắc tăng chậm hơn nội thành nhưng cần theo dõi.',
+    url: 'https://moh.gov.vn', publishedAt: Date.now() - 10800_000,
+    lat: 10.718, lng: 106.594, cases: 420, deaths: 0, province: 'TP. Hồ Chí Minh', district: 'Bình Chánh',
+  },
+  // Hà Nội — district-level
+  {
+    id: 'vn-deng-hn-hm', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
+    countryCode: 'VN', alertLevel: 'warning', title: 'Dengue — Hà Nội Hoàng Mai',
+    summary: 'Quận Hoàng Mai — ổ dịch SXH lớn nhất Hà Nội, tập trung khu đô thị mới.',
+    url: 'https://moh.gov.vn', publishedAt: Date.now() - 7200_000,
+    lat: 20.976, lng: 105.862, cases: 820, deaths: 1, province: 'Hà Nội', district: 'Hoàng Mai',
+  },
+  {
+    id: 'vn-deng-hn-tx', disease: 'Sốt xuất huyết (Dengue)', country: 'Vietnam',
+    countryCode: 'VN', alertLevel: 'warning', title: 'Dengue — Hà Nội Thanh Xuân',
+    summary: 'Thanh Xuân ca SXH tăng do mật độ dân cư cao, khu chung cư cũ.',
+    url: 'https://moh.gov.vn', publishedAt: Date.now() - 10800_000,
+    lat: 20.993, lng: 105.815, cases: 530, deaths: 0, province: 'Hà Nội', district: 'Thanh Xuân',
   },
   {
     id: 'vn-hfmd-dn', disease: 'Tay chân miệng (HFMD)', country: 'Vietnam',
@@ -68,7 +105,7 @@ export const SAMPLE_STATS: EpidemicStats = {
   activeAlerts: SAMPLE_OUTBREAKS.filter(o => o.alertLevel === 'alert').length,
   countriesAffected: 1,
   topDiseases: [
-    { disease: 'Sốt xuất huyết (Dengue)', count: 4 },
+    { disease: 'Sốt xuất huyết (Dengue)', count: SAMPLE_OUTBREAKS.filter(o => o.disease.includes('Dengue')).length },
     { disease: 'Tay chân miệng (HFMD)', count: 1 },
     { disease: 'Cúm A (Influenza A)', count: 1 },
     { disease: 'COVID-19', count: 1 },

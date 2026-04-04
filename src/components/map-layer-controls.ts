@@ -15,6 +15,7 @@ interface ControlDef {
 }
 
 const CONTROLS: ControlDef[] = [
+  { name: 'districts',     label: 'District Fill'    },
   { name: 'markers',       label: 'Outbreak Markers' },
   { name: 'heatmap',       label: 'Severity Heatmap' },
   { name: 'choropleth',    label: 'Country Risk'     },

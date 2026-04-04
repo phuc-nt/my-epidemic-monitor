@@ -14,6 +14,10 @@ export interface DiseaseOutbreakItem {
   lng?: number;
   cases?: number;
   deaths?: number;
+  /** Province/city name (tỉnh/thành phố) */
+  province?: string;
+  /** District name (quận/huyện) — for sub-city precision */
+  district?: string;
 }
 
 export interface NewsItem {

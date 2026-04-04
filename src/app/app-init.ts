@@ -35,7 +35,7 @@ import { complete } from '@/services/llm-router';
 import { fetchClimateForecasts } from '@/services/climate-service';
 import { initSnapshotDB, saveSnapshot, getRecentSnapshots, pruneOldSnapshots } from '@/services/snapshot-store';
 import { computeStatsDelta, computeAllTrends, detectEscalations, detectEarlyWarnings } from '@/services/trend-calculator';
-import { setEarlyWarnings } from '@/components/map-layers/index';
+import { setEarlyWarnings, setDistrictGeoJson } from '@/components/map-layers/index';
 import type { DiseaseOutbreakItem, EpidemicStats, NewsItem } from '@/types';
 
 export async function initApp(): Promise<void> {
@@ -188,7 +188,16 @@ export async function initApp(): Promise<void> {
       outbreaksPanel.updateData(filtered);
     });
 
-    // 11. Fetch climate forecasts + compute early warnings (non-blocking)
+    // 11. Load district GeoJSON boundaries (non-blocking)
+    fetch('/data/vietnam-districts.geojson')
+      .then(r => r.json())
+      .then(geoJson => {
+        setDistrictGeoJson(geoJson);
+        console.info(`[EpidemicMonitor] District boundaries loaded: ${geoJson.features?.length} districts`);
+      })
+      .catch(() => { /* District boundaries optional — map still works without */ });
+
+    // 12. Fetch climate forecasts + compute early warnings (non-blocking)
     fetchClimateForecasts().then((forecasts) => {
       climatePanel.updateData(forecasts);
 

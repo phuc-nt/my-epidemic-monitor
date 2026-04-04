@@ -11,9 +11,10 @@ import { createOutbreakMarkersLayer } from './outbreak-markers-layer';
 import { createSeverityHeatmapLayer } from './severity-heatmap-layer';
 import { createCountryChoroplethLayer } from './country-choropleth-layer';
 import { createEarlyWarningLayer } from './early-warning-layer';
+import { createDistrictChoroplethLayer } from './district-choropleth-layer';
 import type { EarlyWarning } from '@/services/trend-calculator';
 
-export type LayerName = 'markers' | 'heatmap' | 'choropleth' | 'earlyWarnings';
+export type LayerName = 'markers' | 'heatmap' | 'choropleth' | 'earlyWarnings' | 'districts';
 
 export interface LayerCallbacks {
   onMarkerClick?: (item: DiseaseOutbreakItem) => void;
@@ -26,6 +27,7 @@ const _visible: Record<LayerName, boolean> = {
   heatmap:       true,
   choropleth:    true,
   earlyWarnings: true,
+  districts:     true,
 };
 
 /** Last known inputs — stored so toggleLayer() can rebuild without re-passing. */
@@ -35,6 +37,7 @@ let _riskScores: Map<string, number> = new Map();
 let _geoJson: unknown = null;
 let _callbacks: LayerCallbacks = {};
 let _earlyWarnings: EarlyWarning[] = [];
+let _districtGeoJson: unknown = null;
 
 /**
  * Rebuild and push the active layer stack to the map.
@@ -66,6 +69,12 @@ export function toggleLayer(name: LayerName): void {
   if (_shell) _applyLayers();
 }
 
+/** Set district GeoJSON boundaries and re-render. */
+export function setDistrictGeoJson(geoJson: unknown): void {
+  _districtGeoJson = geoJson;
+  if (_shell) _applyLayers();
+}
+
 /** Set early warning data and re-render layers. */
 export function setEarlyWarnings(warnings: EarlyWarning[]): void {
   _earlyWarnings = warnings;
@@ -85,6 +94,11 @@ function _applyLayers(): void {
   if (!_shell) return;
 
   const layers: Layer[] = [];
+
+  // District boundaries first (below other layers)
+  if (_visible.districts && _districtGeoJson) {
+    layers.push(createDistrictChoroplethLayer(_districtGeoJson, _outbreaks));
+  }
 
   if (_visible.choropleth && _geoJson) {
     layers.push(createCountryChoroplethLayer(_geoJson, _riskScores, _callbacks.onCountryClick));
