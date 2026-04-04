@@ -57,7 +57,46 @@ const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
   SS: [6.88, 31.31], ES: [40.46, -3.75], SD: [12.86, 30.22], SY: [34.80, 38.99],
   TZ: [-6.37, 34.89], TH: [15.87, 100.99], TR: [38.96, 35.24], UG: [1.37, 32.29],
   UA: [48.38, 31.17], GB: [55.38, -3.44], US: [37.09, -95.71], VE: [6.42, -66.59],
-  VN: [14.06, 108.28], YE: [15.55, 48.52], ZM: [-13.13, 27.85], ZW: [-19.02, 29.15],
+  VN: [16.05, 108.22], YE: [15.55, 48.52], ZM: [-13.13, 27.85], ZW: [-19.02, 29.15],
+};
+
+/**
+ * Vietnam provinces — centroid lat/lng for sub-national outbreak mapping.
+ * Used when outbreak title/description mentions a Vietnamese province.
+ */
+const VN_PROVINCES: Record<string, [number, number]> = {
+  'Hanoi': [21.03, 105.85], 'Ha Noi': [21.03, 105.85],
+  'Ho Chi Minh': [10.82, 106.63], 'HCMC': [10.82, 106.63], 'Saigon': [10.82, 106.63],
+  'Da Nang': [16.05, 108.22], 'Hai Phong': [20.86, 106.68],
+  'Can Tho': [10.04, 105.79], 'Binh Duong': [11.17, 106.65],
+  'Dong Nai': [10.95, 106.82], 'Khanh Hoa': [12.25, 109.05],
+  'Quang Ninh': [21.01, 107.29], 'Thanh Hoa': [19.81, 105.78],
+  'Nghe An': [18.97, 105.17], 'Ha Tinh': [18.34, 105.91],
+  'Binh Thuan': [11.09, 108.07], 'Lam Dong': [11.94, 108.44],
+  'Dak Lak': [12.71, 108.24], 'Gia Lai': [13.98, 108.00],
+  'Quang Nam': [15.57, 108.47], 'Binh Dinh': [13.78, 109.22],
+  'Phu Yen': [13.09, 109.09], 'Thua Thien Hue': [16.47, 107.60],
+  'Hue': [16.47, 107.60], 'Quang Binh': [17.47, 106.60],
+  'Quang Tri': [16.75, 107.19], 'Ninh Binh': [20.25, 105.97],
+  'Thai Binh': [20.45, 106.34], 'Nam Dinh': [20.43, 106.16],
+  'Vinh Phuc': [21.31, 105.60], 'Bac Ninh': [21.19, 106.07],
+  'Hung Yen': [20.65, 106.06], 'Hai Duong': [20.94, 106.31],
+  'Thai Nguyen': [21.59, 105.85], 'Bac Giang': [21.27, 106.19],
+  'Lang Son': [21.85, 106.76], 'Cao Bang': [22.67, 106.26],
+  'Son La': [21.33, 103.91], 'Lai Chau': [22.39, 103.46],
+  'Lao Cai': [22.49, 103.97], 'Yen Bai': [21.72, 104.87],
+  'Tuyen Quang': [21.78, 105.21], 'Ha Giang': [22.83, 104.98],
+  'Phu Tho': [21.42, 105.23], 'Hoa Binh': [20.81, 105.34],
+  'Long An': [10.54, 106.41], 'Tien Giang': [10.35, 106.36],
+  'Ben Tre': [10.24, 106.38], 'Tra Vinh': [9.95, 106.34],
+  'Vinh Long': [10.25, 105.97], 'Dong Thap': [10.45, 105.63],
+  'An Giang': [10.52, 105.13], 'Kien Giang': [10.01, 105.08],
+  'Bac Lieu': [9.29, 105.72], 'Ca Mau': [9.18, 105.15],
+  'Soc Trang': [9.60, 105.98], 'Hau Giang': [9.78, 105.47],
+  'Tay Ninh': [11.31, 106.10], 'Binh Phuoc': [11.75, 106.72],
+  'Ba Ria Vung Tau': [10.50, 107.17], 'Vung Tau': [10.35, 107.08],
+  'Kon Tum': [14.35, 108.00], 'Ninh Thuan': [11.58, 108.99],
+  'Dak Nong': [12.00, 107.69], 'Quang Ngai': [15.12, 108.80],
 };
 
 interface RssItem {
@@ -126,6 +165,15 @@ function lookupCountryCode(name: string): string {
   return '';
 }
 
+/** Search text for a Vietnam province name, return its centroid. */
+function findVnProvince(text: string): [number, number] | null {
+  const lower = text.toLowerCase();
+  for (const [name, coords] of Object.entries(VN_PROVINCES)) {
+    if (lower.includes(name.toLowerCase())) return coords;
+  }
+  return null;
+}
+
 export default async function GET(_request: Request): Promise<Response> {
   const cached = getCached<{ outbreaks: unknown[]; fetchedAt: number }>(CACHE_KEY);
   if (cached) return jsonResponse(cached, 200, 300);
@@ -143,18 +191,25 @@ export default async function GET(_request: Request): Promise<Response> {
       const country = deriveCountry(item.title);
       const countryCode = lookupCountryCode(country);
       const centroid = COUNTRY_CENTROIDS[countryCode];
+      // Try Vietnam sub-national geocoding for more precise placement
+      let lat = centroid?.[0];
+      let lng = centroid?.[1];
+      if (countryCode === 'VN' || country.toLowerCase().includes('viet')) {
+        const vnMatch = findVnProvince(item.title + ' ' + item.description);
+        if (vnMatch) { lat = vnMatch[0]; lng = vnMatch[1]; }
+      }
       return {
         id: hashString(item.link || item.title),
         disease: deriveDisease(item.title),
         country,
-        countryCode,
+        countryCode: countryCode || (country.toLowerCase().includes('viet') ? 'VN' : ''),
         alertLevel: deriveAlertLevel(item.title),
         title: item.title,
         summary: item.description.replace(/<[^>]+>/g, '').slice(0, 300),
         url: item.link,
         publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
-        lat: centroid?.[0],
-        lng: centroid?.[1],
+        lat,
+        lng,
       };
     });
 

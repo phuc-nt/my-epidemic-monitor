@@ -4,8 +4,9 @@ import type { Layer } from '@deck.gl/core';
 
 const DARK_BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
-const DEFAULT_CENTER: [number, number] = [10, 20];
-const DEFAULT_ZOOM = 2;
+/** Default center: Vietnam */
+const DEFAULT_CENTER: [number, number] = [108.2, 16.0];
+const DEFAULT_ZOOM = 5.5;
 
 /**
  * Thin wrapper around a MapLibre GL map with a deck.gl overlay.

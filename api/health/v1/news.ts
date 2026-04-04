@@ -20,6 +20,9 @@ const RSS_SOURCES: { name: string; url: string }[] = [
     name: 'ReliefWeb',
     url: 'https://api.reliefweb.int/v1/reports?appname=epidemic-monitor&filter[field]=theme.name&filter[value]=Health&format=rss',
   },
+  // Vietnam-specific health news sources
+  { name: 'WHO-VN', url: 'https://www.who.int/vietnam/rss-feeds/news/rss.xml' },
+  { name: 'MOH-VN', url: 'https://moh.gov.vn/rss/-/home' },
 ];
 
 function extractTag(xml: string, tag: string): string {

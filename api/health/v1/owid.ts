@@ -74,7 +74,18 @@ export default async function GET(_request: Request): Promise<Response> {
         }
         return record;
       })
-      .sort((a, b) => (b['total_cases'] as number) - (a['total_cases'] as number))
+      .sort((a, b) => {
+        // Vietnam always first
+        if (a['iso_code'] === 'VNM') return -1;
+        if (b['iso_code'] === 'VNM') return 1;
+        // Then Southeast Asia neighbors
+        const seaCodes = new Set(['THA', 'KHM', 'LAO', 'MMR', 'MYS', 'SGP', 'IDN', 'PHL']);
+        const aIsSea = seaCodes.has(a['iso_code'] as string);
+        const bIsSea = seaCodes.has(b['iso_code'] as string);
+        if (aIsSea && !bIsSea) return -1;
+        if (!aIsSea && bIsSea) return 1;
+        return (b['total_cases'] as number) - (a['total_cases'] as number);
+      })
       .slice(0, 50);
 
     const payload = { countries, fetchedAt: Date.now() };
