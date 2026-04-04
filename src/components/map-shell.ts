@@ -3,12 +3,12 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { Layer } from '@deck.gl/core';
 
 /**
- * High-resolution dark vector basemap options (ordered by quality):
- * 1. OpenFreeMap — free, no key, full vector tiles with retina support
- * 2. CartoDB dark-matter-gl — fallback if OpenFreeMap is down
+ * Light, clean basemap — optimized for data readability over aesthetics.
+ * OpenFreeMap bright = vector tiles, free, no key.
+ * CartoDB positron = light fallback, clean labels.
  */
-const BASEMAP_PRIMARY = 'https://tiles.openfreemap.org/styles/dark';
-const BASEMAP_FALLBACK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+const BASEMAP_PRIMARY = 'https://tiles.openfreemap.org/styles/bright';
+const BASEMAP_FALLBACK = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
 /** Default center: Vietnam [lng, lat] */
 const DEFAULT_CENTER: [number, number] = [107.5, 15.5];

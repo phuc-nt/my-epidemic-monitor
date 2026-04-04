@@ -7,10 +7,11 @@
 import { ScatterplotLayer } from '@deck.gl/layers';
 import type { DiseaseOutbreakItem, AlertLevel } from '@/types';
 
+/** Fully opaque colors for light basemap visibility */
 const ALERT_COLORS: Record<AlertLevel, [number, number, number, number]> = {
-  alert:   [231,  76,  60, 200],
-  warning: [230, 126,  34, 180],
-  watch:   [241, 196,  15, 160],
+  alert:   [220,  38,  38, 220],
+  warning: [217, 119,   6, 200],
+  watch:   [163, 163,  18, 180],
 };
 
 /** Radius in meters — large enough for Vietnam zoom */
@@ -43,7 +44,7 @@ export function createOutbreakMarkersLayer(
     radiusMinPixels: 8,
     radiusMaxPixels: 40,
     stroked: true,
-    getLineColor: [255, 255, 255, 60],
+    getLineColor: [0, 0, 0, 40],
     lineWidthMinPixels: 1,
   });
 }

@@ -36,9 +36,10 @@ export function createSeverityHeatmapLayer(
     data,
     getPosition: (d) => [d.lng!, d.lat!],
     getWeight:   (d) => WEIGHT_MAP[d.alertLevel] ?? 1,
-    radiusPixels: 60,
-    intensity: 1,
-    threshold: 0.1,
+    radiusPixels: 50,
+    intensity: 0.8,
+    threshold: 0.15,
+    opacity: 0.6,
     colorRange: COLOR_RANGE,
   });
 }

@@ -1,20 +1,21 @@
 /* ============================================================
-   Epidemic Monitor — base dark theme
+   Epidemic Monitor — clean light theme
+   Optimized for data readability and efficiency.
    ============================================================ */
 
 :root {
-  --bg:       #0a0a0f;
-  --surface:  #13131a;
-  --surface2: #1c1c27;
-  --border:   #2a2a3a;
-  --text:     #e2e2f0;
-  --text-muted: #8888a8;
-  --accent:   #4f8ef7;
+  --bg:       #f5f5f7;
+  --surface:  #ffffff;
+  --surface2: #f0f0f3;
+  --border:   #d8d8de;
+  --text:     #1a1a2e;
+  --text-muted: #6b6b80;
+  --accent:   #2563eb;
 
-  /* Alert levels */
-  --alert:    #e03e3e;
-  --warning:  #e08a1e;
-  --watch:    #c8c820;
+  /* Alert levels — saturated for visibility on light bg */
+  --alert:    #dc2626;
+  --warning:  #d97706;
+  --watch:    #a3a312;
 
   --radius:   6px;
   --font:     system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -352,7 +353,7 @@ html, body {
 .map-popup {
   position: absolute; z-index: 1000; min-width: 220px; max-width: 300px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5); padding: 10px; pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12); padding: 10px; pointer-events: auto;
 }
 .map-popup-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .map-popup-badge {
@@ -384,7 +385,7 @@ html, body {
 
 /* ── Scrollbar ───────────────────────────────────────────── */
 
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
