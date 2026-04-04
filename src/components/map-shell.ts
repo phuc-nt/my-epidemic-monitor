@@ -1,0 +1,68 @@
+import maplibregl from 'maplibre-gl';
+import { MapboxOverlay } from '@deck.gl/mapbox';
+import type { Layer } from '@deck.gl/core';
+
+const DARK_BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+
+const DEFAULT_CENTER: [number, number] = [10, 20];
+const DEFAULT_ZOOM = 2;
+
+/**
+ * Thin wrapper around a MapLibre GL map with a deck.gl overlay.
+ * Mount to #map container. Call setLayers() to update deck.gl layers.
+ */
+export class MapShell {
+  private map: maplibregl.Map;
+  private overlay: MapboxOverlay;
+
+  constructor(containerId = 'map') {
+    const container = document.getElementById(containerId);
+    if (!container) {
+      throw new Error(`MapShell: container #${containerId} not found in DOM`);
+    }
+
+    this.map = new maplibregl.Map({
+      container,
+      style: DARK_BASEMAP,
+      center: DEFAULT_CENTER,
+      zoom: DEFAULT_ZOOM,
+      attributionControl: false,
+    });
+
+    // Minimal attribution in bottom-right
+    this.map.addControl(
+      new maplibregl.AttributionControl({ compact: true }),
+      'bottom-right',
+    );
+
+    // Navigation controls (zoom +/-)
+    this.map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    // deck.gl overlay — starts with no layers
+    this.overlay = new MapboxOverlay({ layers: [] });
+    this.map.addControl(this.overlay as unknown as maplibregl.IControl);
+  }
+
+  /**
+   * Replace the current deck.gl layer stack.
+   * Safe to call before the map fires 'load'.
+   */
+  setLayers(layers: Layer[]): void {
+    this.overlay.setProps({ layers });
+  }
+
+  /** Fly to a location. */
+  flyTo(center: [number, number], zoom?: number): void {
+    this.map.flyTo({ center, zoom: zoom ?? this.map.getZoom() });
+  }
+
+  /** Expose the underlying MapLibre map for advanced use. */
+  getMap(): maplibregl.Map {
+    return this.map;
+  }
+
+  /** Clean up map resources. */
+  destroy(): void {
+    this.map.remove();
+  }
+}

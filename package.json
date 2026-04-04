@@ -1,0 +1,28 @@
+{
+  "name": "my-epidemic-monitor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint ./src"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.1.0",
+    "@deck.gl/layers": "^9.1.0",
+    "@deck.gl/geo-layers": "^9.1.0",
+    "@deck.gl/mapbox": "^9.1.0",
+    "deck.gl": "^9.1.0",
+    "maplibre-gl": "^4.7.0",
+    "dompurify": "^3.2.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "typescript": "^5.7.0",
+    "@biomejs/biome": "^2.0.0",
+    "@types/dompurify": "^3.0.5"
+  }
+}
