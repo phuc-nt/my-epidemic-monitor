@@ -133,4 +133,63 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     const innerHTML = await appElement.innerHTML();
     expect(innerHTML.length).toBeGreaterThan(0);
   });
+
+  // =====================================================================
+  // AI Assistant ChatBox Tests — Added for chat-panel component
+  // =====================================================================
+
+  test('AI assistant panel renders with status', async ({ page }) => {
+    await page.goto('/');
+    const panel = page.locator('.panel').filter({ hasText: /AI Assistant/i });
+    await expect(panel).toBeVisible({ timeout: 10000 });
+    // Should show provider status
+    const status = page.locator('.chat-status');
+    await expect(status).toBeVisible();
+    // Should have welcome message
+    await expect(page.locator('.chat-msg--assistant').first()).toBeVisible();
+  });
+
+  test('chat input and send button exist', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    const input = page.locator('.chat-input');
+    await expect(input).toBeVisible();
+    const sendBtn = page.locator('.chat-send-btn');
+    await expect(sendBtn).toBeVisible();
+  });
+
+  test('can type in chat input', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    const input = page.locator('.chat-input');
+    await input.fill('Test message');
+    await expect(input).toHaveValue('Test message');
+  });
+
+  test('send message creates user bubble and triggers LLM response', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(6000); // Wait for LLM init
+
+    const input = page.locator('.chat-input');
+    await input.fill('Có bao nhiêu outbreak?');
+    await page.locator('.chat-send-btn').click();
+
+    // User message should appear
+    await expect(page.locator('.chat-msg--user')).toBeVisible({ timeout: 5000 });
+
+    // Wait for AI response (streaming from Ollama, may take up to 20s)
+    await expect(page.locator('.chat-msg--assistant').nth(1)).toBeVisible({ timeout: 25000 });
+
+    // Response should contain some text
+    const responseText = await page.locator('.chat-msg--assistant').last().textContent();
+    expect(responseText!.length).toBeGreaterThan(10);
+  });
+
+  test('chat status shows provider info', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(6000);
+    const status = await page.locator('.chat-status').textContent();
+    // Should show either Ollama or "No LLM" - both are valid
+    expect(status!.length).toBeGreaterThan(3);
+  });
 });
