@@ -197,22 +197,46 @@ Tester agent không chỉ test — nó cũng fix lint issues tìm thấy (isNaN 
 
 ---
 
-## 10. Full Session Stats
+## 10. Data Optimization — Main Agent vs Agents
 
-| Metric | Value |
-|--------|-------|
-| Total agents dispatched | ~15 |
-| Agent types used | Explore, planner, fullstack-developer, tester, researcher |
-| Parallel dispatches | 5 rounds (2-3 agents/round) |
-| File conflicts | 0 |
-| Manual fixes after agents | ~5 (type mismatches, DOM wipe bug) |
-| Total session time | ~4 hours |
-| Files created by agents | ~45 |
-| Files created/edited by main | ~15 |
+### Khi nào tự code (không dispatch agent)?
+- **Sửa 1-3 files liên quan chặt** → tự làm nhanh hơn agent spawn+wait
+- **Ví dụ**: thêm CSS classes, fix test assertions, wire vào app-init
+- **Ví dụ**: expand alias table từ 14→67 entries — đơn giản, repetitive, không cần agent
+
+### Khi nào dispatch agent?
+- **Feature mới cần 4+ files** (API + service + panel + CSS)
+- **Research** (tìm GeoJSON source, competitive analysis)
+- **Test suite chạy + fix** (tester agent tự fix lint)
+
+### Autoresearch pattern (normalization 29%→100%)
+1. Tạo metric script (`measure-normalization.mjs`) — output single number
+2. Đo baseline: 29%
+3. Expand DISEASE_ALIASES: 14→67, thêm VN aliases, fix match order
+4. Re-measure: 100%
+5. Commit with metric in message
+
+**Key insight**: Metric-driven optimization hiệu quả hơn "make it better" vì có objective target.
 
 ---
 
-## 11. Lessons Learned (Updated)
+## 11. Full Session Stats (Final)
+
+| Metric | Value |
+|--------|-------|
+| Total agents dispatched | ~20 |
+| Agent types used | Explore, planner, fullstack-developer, tester, researcher |
+| Parallel dispatches | 7 rounds (2-3 agents/round) |
+| File conflicts | 0 |
+| Manual fixes after agents | ~8 (type mismatches, DOM wipe, test assertions, wiring) |
+| Total session time | ~8 hours (06:47 → ~17:00) |
+| Files created by agents | ~50 |
+| Files created/edited by main | ~20 |
+| Final codebase | 52 TS files, 4774 lines, 25 E2E tests |
+
+---
+
+## 12. Lessons Learned (Final — 16 items)
 
 1. **Explore agents dễ bị rate limit** — dùng Grep/Glob trực tiếp cho searches đơn giản
 2. **File ownership = zero conflicts** — luôn list files cho mỗi agent
@@ -225,5 +249,8 @@ Tester agent không chỉ test — nó cũng fix lint issues tìm thấy (isNaN 
 9. **Vector tiles >>> raster tiles** — sắc nét ở mọi zoom level
 10. **Feature = 4-file bundle** (API + service + panel + CSS) → perfect for agent ownership
 11. **Tester agent fix lint too** — saves round-trip, let tester own lint fixes
-12. **Layout bugs need real viewport testing** — Playwright với explicit viewport size, không dùng default
-13. **Wire new panels cuối cùng** — agents tạo isolated files, main agent integrate trong app-init
+12. **Layout bugs need real viewport testing** — Playwright với explicit viewport size
+13. **Wire new panels cuối cùng** — agents tạo isolated files, main agent integrate
+14. **Metric script trước khi optimize** — đo baseline, set target, verify sau mỗi change
+15. **Small edits: tự làm > dispatch agent** — 1-3 file edits không cần agent overhead
+16. **Researcher agent cho external data** — tìm GeoJSON, API docs, competitive analysis hiệu quả
