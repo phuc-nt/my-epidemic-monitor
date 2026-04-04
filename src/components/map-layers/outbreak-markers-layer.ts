@@ -13,10 +13,11 @@ const ALERT_COLORS: Record<AlertLevel, [number, number, number, number]> = {
   watch:   [241, 196,  15, 160],
 };
 
+/** Radius in meters — large enough for Vietnam zoom */
 const ALERT_RADII: Record<AlertLevel, number> = {
-  alert:   80_000,
-  warning: 50_000,
-  watch:   30_000,
+  alert:   25_000,
+  warning: 18_000,
+  watch:   12_000,
 };
 
 /**
@@ -33,14 +34,14 @@ export function createOutbreakMarkersLayer(
     id: 'outbreak-markers',
     data,
     getPosition: (d) => [d.lng!, d.lat!],
-    getRadius:   (d) => ALERT_RADII[d.alertLevel]  ?? 30_000,
+    getRadius:   (d) => ALERT_RADII[d.alertLevel]  ?? 10,
     getFillColor:(d) => ALERT_COLORS[d.alertLevel] ?? [150, 150, 150, 150],
     pickable: true,
     onClick: (info) => {
       if (info.object && onClick) onClick(info.object);
     },
-    radiusMinPixels: 4,
-    radiusMaxPixels: 30,
+    radiusMinPixels: 8,
+    radiusMaxPixels: 40,
     stroked: true,
     getLineColor: [255, 255, 255, 60],
     lineWidthMinPixels: 1,

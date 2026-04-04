@@ -22,6 +22,9 @@ import { updateMapLayers } from '@/components/map-layers/index';
 
 import { fetchDiseaseOutbreaks } from '@/services/disease-outbreak-service';
 import { fetchEpidemicStats } from '@/services/epidemic-stats-service';
+import { fetchHealthNews } from '@/services/news-feed-service';
+import { SAMPLE_OUTBREAKS, SAMPLE_STATS, SAMPLE_NEWS } from '@/services/sample-data';
+import { NewsFeedPanel } from '@/components/news-feed-panel';
 import type { DiseaseOutbreakItem } from '@/types';
 
 export async function initApp(): Promise<void> {
@@ -38,16 +41,19 @@ export async function initApp(): Promise<void> {
     const statsPanel     = new EpidemicStatisticsPanel();
     const countryPanel   = new CountryHealthPanel();
     const trendPanel     = new TrendChartPanel();
+    const newsPanel      = new NewsFeedPanel();
 
     // 4. Mount panels into grid
     panelsGrid.appendChild(outbreaksPanel.el);
     panelsGrid.appendChild(statsPanel.el);
+    panelsGrid.appendChild(newsPanel.el);
     panelsGrid.appendChild(countryPanel.el);
     panelsGrid.appendChild(trendPanel.el);
 
     // 5. Store panel refs in context
     ctx.panels.set(outbreaksPanel.id, outbreaksPanel);
     ctx.panels.set(statsPanel.id,     statsPanel);
+    ctx.panels.set(newsPanel.id,      newsPanel);
     ctx.panels.set(countryPanel.id,   countryPanel);
     ctx.panels.set(trendPanel.id,     trendPanel);
 
@@ -73,44 +79,56 @@ export async function initApp(): Promise<void> {
       ctx.isMobile = window.innerWidth < 768;
     });
 
-    // 10. Fetch data — graceful degradation on failure
-    try {
-      outbreaksPanel.showLoading();
-      statsPanel.showLoading();
+    // 10. Fetch data — fallback to sample data when API unavailable
+    outbreaksPanel.showLoading();
+    statsPanel.showLoading();
+    newsPanel.showLoading();
 
-      // Parallel fetch: outbreaks + stats
-      const [outbreaks, stats] = await Promise.all([
+    let outbreaks: DiseaseOutbreakItem[];
+    let stats;
+    let news;
+
+    try {
+      [outbreaks, stats, news] = await Promise.all([
         fetchDiseaseOutbreaks(),
         fetchEpidemicStats(),
+        fetchHealthNews(),
       ]);
-
-      ctx.outbreaks = outbreaks;
-
-      outbreaksPanel.updateData(outbreaks);
-      statsPanel.updateData(stats);
-
-      // Build per-country risk score map for choropleth
-      const riskWeight: Record<string, number> = { alert: 1, warning: 0.6, watch: 0.3 };
-      const riskScores = new Map<string, number>();
-      for (const o of outbreaks) {
-        const prev  = riskScores.get(o.countryCode) ?? 0;
-        const score = riskWeight[o.alertLevel] ?? 0.2;
-        if (score > prev) riskScores.set(o.countryCode, score);
-      }
-
-      // Wire map layers (choropleth skipped — no GeoJSON loaded yet)
-      updateMapLayers(mapShell, outbreaks, riskScores, null, {
-        onMarkerClick: (item) => emit('outbreak-selected', item),
-        onCountryClick: (code) => {
-          const profile = ctx.countryProfiles.get(code);
-          if (profile) emit('country-selected', profile);
-        },
-      });
-    } catch (fetchErr) {
-      console.warn('[EpidemicMonitor] Data fetch failed, showing empty state:', fetchErr);
-      outbreaksPanel.showError('Could not load outbreak data.', () => window.location.reload());
-      statsPanel.showError('Statistics unavailable.');
+      // Use sample data if API returned empty
+      if (!outbreaks.length) outbreaks = SAMPLE_OUTBREAKS;
+      if (!stats.totalOutbreaks) stats = SAMPLE_STATS;
+      if (!news.length) news = SAMPLE_NEWS;
+    } catch {
+      console.info('[EpidemicMonitor] API unavailable, using sample Vietnam data');
+      outbreaks = SAMPLE_OUTBREAKS;
+      stats = SAMPLE_STATS;
+      news = SAMPLE_NEWS;
     }
+
+    ctx.outbreaks = outbreaks;
+    ctx.news = news;
+
+    outbreaksPanel.updateData(outbreaks);
+    statsPanel.updateData(stats);
+    newsPanel.updateData(news);
+
+    // Build per-country risk score map for choropleth
+    const riskWeight: Record<string, number> = { alert: 1, warning: 0.6, watch: 0.3 };
+    const riskScores = new Map<string, number>();
+    for (const o of outbreaks) {
+      const prev  = riskScores.get(o.countryCode) ?? 0;
+      const score = riskWeight[o.alertLevel] ?? 0.2;
+      if (score > prev) riskScores.set(o.countryCode, score);
+    }
+
+    // Wire map layers
+    updateMapLayers(mapShell, outbreaks, riskScores, null, {
+      onMarkerClick: (item) => emit('outbreak-selected', item),
+      onCountryClick: (code) => {
+        const profile = ctx.countryProfiles.get(code);
+        if (profile) emit('country-selected', profile);
+      },
+    });
 
     console.info('[EpidemicMonitor] App initialized');
   } catch (err) {

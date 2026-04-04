@@ -13,6 +13,8 @@ const REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 /** Source display config: label → CSS color variable */
 const SOURCE_COLORS: Record<string, string> = {
   WHO: '#1976d2',
+  'WHO-VN': '#1565c0',
+  'MOH-VN': '#c62828',
   CDC: '#388e3c',
   ProMED: '#f57c00',
   ECDC: '#7b1fa2',
@@ -93,6 +95,13 @@ export class NewsFeedPanel extends Panel {
       clearInterval(this._refreshTimer);
       this._refreshTimer = null;
     }
+  }
+
+  /** Accept pre-fetched news items (used by app-init for sample data fallback). */
+  updateData(items: NewsItem[]): void {
+    this._allItems = items;
+    this.setCount(items.length);
+    this._render();
   }
 
   private async _loadData(forceRefresh = false): Promise<void> {

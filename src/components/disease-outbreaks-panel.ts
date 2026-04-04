@@ -59,7 +59,20 @@ export class DiseaseOutbreaksPanel extends Panel {
   updateData(outbreaks: DiseaseOutbreakItem[]): void {
     this._outbreaks = outbreaks;
     this.setCount(outbreaks.length);
+    // Re-mount toolbar + list (showLoading may have wiped content)
+    this._remount();
     this._render();
+  }
+
+  /** Re-insert the toolbar and list container into the panel content area. */
+  private _remount(): void {
+    this.content.textContent = '';
+    const toolbar = h('div', { className: 'outbreak-toolbar' },
+      this._filterBar,
+      this._searchInput,
+    );
+    this.content.appendChild(toolbar);
+    this.content.appendChild(this._listEl);
   }
 
   // ---------------------------------------------------------------------------

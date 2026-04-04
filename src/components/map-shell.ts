@@ -4,9 +4,9 @@ import type { Layer } from '@deck.gl/core';
 
 const DARK_BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
-/** Default center: Vietnam */
-const DEFAULT_CENTER: [number, number] = [108.2, 16.0];
-const DEFAULT_ZOOM = 5.5;
+/** Default center: Vietnam [lng, lat] */
+const DEFAULT_CENTER: [number, number] = [107.5, 15.5];
+const DEFAULT_ZOOM = 6;
 
 /**
  * Thin wrapper around a MapLibre GL map with a deck.gl overlay.
@@ -27,6 +27,9 @@ export class MapShell {
       style: DARK_BASEMAP,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
+      minZoom: 5,
+      maxZoom: 14,
+      maxBounds: [[100.0, 7.5], [114.0, 24.0]],
       attributionControl: false,
     });
 

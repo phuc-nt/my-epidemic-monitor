@@ -21,7 +21,7 @@ export interface LayerCallbacks {
 /** Visibility state for all named layers. */
 const _visible: Record<LayerName, boolean> = {
   markers:    true,
-  heatmap:    false,
+  heatmap:    true,
   choropleth: true,
 };
 
