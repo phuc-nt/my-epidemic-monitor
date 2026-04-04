@@ -26,10 +26,13 @@ import { fetchHealthNews } from '@/services/news-feed-service';
 import { SAMPLE_OUTBREAKS, SAMPLE_STATS, SAMPLE_NEWS } from '@/services/sample-data';
 import { NewsFeedPanel } from '@/components/news-feed-panel';
 import { ChatPanel } from '@/components/chat-panel';
+import { ClimateAlertsPanel } from '@/components/climate-alerts-panel';
+import { CaseReportPanel } from '@/components/case-report-panel';
 import { initLLM, chat } from '@/services/llm-router';
 import { buildMessages } from '@/services/llm-context-builder';
 import { processOutbreaks, processNews, setLLMComplete } from '@/services/llm-data-pipeline';
 import { complete } from '@/services/llm-router';
+import { fetchClimateForecasts } from '@/services/climate-service';
 import type { DiseaseOutbreakItem } from '@/types';
 
 export async function initApp(): Promise<void> {
@@ -48,19 +51,25 @@ export async function initApp(): Promise<void> {
     const trendPanel     = new TrendChartPanel();
     const newsPanel      = new NewsFeedPanel();
     const chatPanel      = new ChatPanel();
+    const climatePanel   = new ClimateAlertsPanel();
+    const caseReportPanel = new CaseReportPanel();
 
     // 4. Mount panels into grid
     panelsGrid.appendChild(outbreaksPanel.el);
+    panelsGrid.appendChild(climatePanel.el);
     panelsGrid.appendChild(statsPanel.el);
     panelsGrid.appendChild(newsPanel.el);
+    panelsGrid.appendChild(caseReportPanel.el);
     panelsGrid.appendChild(chatPanel.el);
     panelsGrid.appendChild(countryPanel.el);
     panelsGrid.appendChild(trendPanel.el);
 
     // 5. Store panel refs in context
     ctx.panels.set(outbreaksPanel.id, outbreaksPanel);
+    ctx.panels.set(climatePanel.id,   climatePanel);
     ctx.panels.set(statsPanel.id,     statsPanel);
     ctx.panels.set(newsPanel.id,      newsPanel);
+    ctx.panels.set(caseReportPanel.id, caseReportPanel);
     ctx.panels.set(chatPanel.id,      chatPanel);
     ctx.panels.set(countryPanel.id,   countryPanel);
     ctx.panels.set(trendPanel.id,     trendPanel);
@@ -130,15 +139,40 @@ export async function initApp(): Promise<void> {
     }
 
     // Wire map layers
-    updateMapLayers(mapShell, outbreaks, riskScores, null, {
-      onMarkerClick: (item) => emit('outbreak-selected', item),
-      onCountryClick: (code) => {
+    const mapCallbacks = {
+      onMarkerClick: (item: DiseaseOutbreakItem) => emit('outbreak-selected', item),
+      onCountryClick: (code: string) => {
         const profile = ctx.countryProfiles.get(code);
         if (profile) emit('country-selected', profile);
       },
+    };
+    updateMapLayers(mapShell, outbreaks, riskScores, null, mapCallbacks);
+
+    // Time filter: re-render map layers with filtered outbreaks
+    on('time-filter-changed', (data) => {
+      const ms = data as number;
+      const now = Date.now();
+      const filtered = ms > 0
+        ? outbreaks.filter(o => (now - o.publishedAt) <= ms)
+        : outbreaks;
+      updateMapLayers(mapShell, filtered, riskScores, null, mapCallbacks);
+      outbreaksPanel.updateData(filtered);
     });
 
-    // 11. Initialize LLM (non-blocking — chat works without it)
+    // 11. Fetch climate forecasts (non-blocking)
+    fetchClimateForecasts().then((forecasts) => {
+      climatePanel.updateData(forecasts);
+    }).catch(() => {
+      // Climate panel shows sample data via service fallback
+    });
+
+    // Wire province-selected from climate panel → map flyTo
+    on('province-selected', (data) => {
+      const { lat, lng } = data as { lat: number; lng: number; province: string };
+      mapShell.flyTo([lng, lat], 8);
+    });
+
+    // 12. Initialize LLM (non-blocking — chat works without it)
     initLLM().then((provider) => {
       if (provider) {
         chatPanel.setStatus(`${provider.config.name} (${provider.config.model})`, true);

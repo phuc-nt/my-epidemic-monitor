@@ -1,0 +1,183 @@
+/* ============================================================
+   Case Report Panel styles — light theme, matches base.css vars
+   ============================================================ */
+
+/* ── Form container ──────────────────────────────────────────── */
+
+.case-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 6px;
+}
+
+/* ── Field wrapper (label + control stacked) ─────────────────── */
+
+.case-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* ── Label ───────────────────────────────────────────────────── */
+
+.case-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ── Shared input/select/textarea baseline ───────────────────── */
+
+.case-input,
+.case-select,
+.case-textarea {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.case-input:focus,
+.case-select:focus,
+.case-textarea:focus {
+  border-color: var(--accent);
+}
+
+.case-input:invalid,
+.case-select:invalid {
+  border-color: var(--alert);
+}
+
+.case-textarea {
+  resize: vertical;
+  min-height: 52px;
+}
+
+/* ── Two-column row for numeric fields ───────────────────────── */
+
+.case-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ── Severity radio group ────────────────────────────────────── */
+
+.case-radio-group {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.case-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.case-radio-label input[type="radio"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── Submit button ───────────────────────────────────────────── */
+
+.case-submit-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-top: 2px;
+}
+
+.case-submit-btn:hover {
+  opacity: 0.88;
+}
+
+.case-submit-btn:active {
+  opacity: 0.75;
+}
+
+/* ── Recent reports list ─────────────────────────────────────── */
+
+.case-recent-section {
+  border-top: 1px solid var(--border);
+  padding: 8px 12px 10px;
+}
+
+.case-recent-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.case-recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.case-recent-item {
+  font-size: 12px;
+  color: var(--text);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--surface2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.case-recent-item:last-child {
+  border-bottom: none;
+}
+
+.case-recent-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* ── Success toast ───────────────────────────────────────────── */
+
+.case-success-toast {
+  background: #16a34a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  margin: 4px 12px;
+  animation: case-toast-fade 3s forwards;
+}
+
+@keyframes case-toast-fade {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}

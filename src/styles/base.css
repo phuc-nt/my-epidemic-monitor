@@ -389,6 +389,15 @@ html, body {
 .layer-controls-label { font-size: 12px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .layer-controls-checkbox { accent-color: var(--accent); cursor: pointer; }
 
+/* Time filter buttons */
+.time-filter-bar { display: flex; gap: 3px; }
+.time-filter-btn {
+  font-size: 11px; padding: 2px 8px; border-radius: 3px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted);
+}
+.time-filter-btn--active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.time-filter-btn:hover { border-color: var(--text-muted); }
+
 /* ── Scrollbar ───────────────────────────────────────────── */
 
 ::-webkit-scrollbar { width: 5px; }
