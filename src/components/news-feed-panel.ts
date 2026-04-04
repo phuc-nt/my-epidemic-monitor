@@ -2,11 +2,13 @@
  * News Feed Panel component.
  * Displays health news from multiple sources with source filter badges.
  * Auto-refreshes every 15 minutes.
+ * Tabs: "Tin tức" (news list) | "Video" (YouTube health videos via news-video-tab)
  */
 import { Panel } from '@/components/panel-base';
 import { fetchHealthNews } from '@/services/news-feed-service';
 import type { NewsItem } from '@/types/index';
 import { h } from '@/utils/dom-utils';
+import { buildVideoTab } from '@/components/news-video-tab';
 
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -21,6 +23,12 @@ const SOURCE_COLORS: Record<string, string> = {
   ReliefWeb: '#00796b',
 };
 
+type ActiveTab = 'news' | 'video';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function relativeTime(epochMs: number): string {
   const diffMs = Date.now() - epochMs;
   const mins = Math.floor(diffMs / 60000);
@@ -28,8 +36,7 @@ function relativeTime(epochMs: number): string {
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function sourceBadge(source: string, active: boolean, onClick: () => void): HTMLElement {
@@ -52,7 +59,6 @@ function newsItemEl(item: NewsItem): HTMLElement {
   }, item.source);
 
   const time = h('span', { className: 'news-item-time' }, relativeTime(item.publishedAt));
-
   const meta = h('div', { className: 'news-item-meta' }, badge, time);
 
   const link = h('a', {
@@ -65,16 +71,20 @@ function newsItemEl(item: NewsItem): HTMLElement {
   const li = h('li', { className: 'news-item' }, meta, link);
 
   if (item.summary) {
-    const summary = h('p', { className: 'news-item-summary' }, item.summary);
-    li.appendChild(summary);
+    li.appendChild(h('p', { className: 'news-item-summary' }, item.summary));
   }
 
   return li;
 }
 
+// ---------------------------------------------------------------------------
+// Panel class
+// ---------------------------------------------------------------------------
+
 export class NewsFeedPanel extends Panel {
   private _allItems: NewsItem[] = [];
   private _activeFilters: Set<string> = new Set();
+  private _activeTab: ActiveTab = 'news';
   private _refreshTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -125,21 +135,40 @@ export class NewsFeedPanel extends Panel {
     this._render();
   }
 
-  private _render(): void {
-    // Collect unique sources from loaded items
+  private _switchTab(tab: ActiveTab): void {
+    this._activeTab = tab;
+    this._render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  private _buildTabBar(): HTMLElement {
+    const newsBtn = h('button', {
+      className: `news-tab-btn${this._activeTab === 'news' ? ' news-tab-btn--active' : ''}`,
+    }, 'Tin tức');
+
+    const videoBtn = h('button', {
+      className: `news-tab-btn${this._activeTab === 'video' ? ' news-tab-btn--active' : ''}`,
+    }, 'Video');
+
+    newsBtn.addEventListener('click', () => this._switchTab('news'));
+    videoBtn.addEventListener('click', () => this._switchTab('video'));
+
+    return h('div', { className: 'news-tab-bar' }, newsBtn, videoBtn);
+  }
+
+  private _buildNewsContent(): HTMLElement {
     const sources = Array.from(new Set(this._allItems.map((i) => i.source))).sort();
 
-    // Filter bar
     const filterBar = h('div', { className: 'news-filter-bar' });
     for (const source of sources) {
-      const isActive = this._activeFilters.size === 0 || this._activeFilters.has(source);
       filterBar.appendChild(sourceBadge(source, this._activeFilters.has(source), () => {
         this._toggleFilter(source);
       }));
-      void isActive; // used in rendering list below
     }
 
-    // Filtered item list
     const filtered = this._activeFilters.size === 0
       ? this._allItems
       : this._allItems.filter((i) => this._activeFilters.has(i.source));
@@ -153,7 +182,15 @@ export class NewsFeedPanel extends Panel {
       }
     }
 
-    const container = h('div', { className: 'news-feed-container' }, filterBar, list);
-    this.setContentNode(container);
+    return h('div', { className: 'news-feed-container' }, filterBar, list);
+  }
+
+  private _render(): void {
+    const tabBar = this._buildTabBar();
+    const tabContent = this._activeTab === 'news'
+      ? this._buildNewsContent()
+      : buildVideoTab();
+
+    this.setContentNode(h('div', { className: 'news-panel-wrapper' }, tabBar, tabContent));
   }
 }

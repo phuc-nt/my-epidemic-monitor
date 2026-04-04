@@ -68,7 +68,12 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     const btnCount = await collapseBtn.count().catch(() => 0);
 
     if (btnCount > 0) {
-      const initialClass = await panel.getAttribute('class');
+      // Dismiss breaking news banner if it overlaps
+      const dismissBtn = page.locator('.breaking-news-banner__dismiss');
+      if (await dismissBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await dismissBtn.click();
+        await page.waitForTimeout(500);
+      }
       await collapseBtn.click();
 
       // Wait a moment for animation
@@ -360,7 +365,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     await page.goto('/');
     await page.waitForTimeout(6000);
     const titles = await page.locator('.panel-title').allTextContents();
-    expect(titles.length).toBe(8);
+    expect(titles.length).toBe(10);
     // Verify key panel names present
     const joined = titles.join(' ');
     expect(joined).toContain('Disease Outbreaks');

@@ -36,6 +36,10 @@ import { fetchClimateForecasts } from '@/services/climate-service';
 import { initSnapshotDB, saveSnapshot, getRecentSnapshots, pruneOldSnapshots } from '@/services/snapshot-store';
 import { computeStatsDelta, computeAllTrends, detectEscalations, detectEarlyWarnings } from '@/services/trend-calculator';
 import { setEarlyWarnings, setDistrictGeoJson } from '@/components/map-layers/index';
+import { BreakingNewsBanner } from '@/components/breaking-news-banner';
+import { CrossSourceSignalsPanel } from '@/components/cross-source-signals-panel';
+import { ProvinceDeepDivePanel } from '@/components/province-deep-dive-panel';
+import { detectCrossSourceSignals } from '@/services/cross-source-signal-service';
 import type { DiseaseOutbreakItem, EpidemicStats, NewsItem } from '@/types';
 
 export async function initApp(): Promise<void> {
@@ -56,12 +60,17 @@ export async function initApp(): Promise<void> {
     const chatPanel      = new ChatPanel();
     const climatePanel   = new ClimateAlertsPanel();
     const caseReportPanel = new CaseReportPanel();
+    const signalsPanel   = new CrossSourceSignalsPanel();
+    const provinceDive   = new ProvinceDeepDivePanel();
+    const banner         = new BreakingNewsBanner();
 
     // 4. Mount panels into grid
     panelsGrid.appendChild(outbreaksPanel.el);
     panelsGrid.appendChild(climatePanel.el);
+    panelsGrid.appendChild(signalsPanel.el);
     panelsGrid.appendChild(statsPanel.el);
     panelsGrid.appendChild(newsPanel.el);
+    panelsGrid.appendChild(provinceDive.el);
     panelsGrid.appendChild(caseReportPanel.el);
     panelsGrid.appendChild(chatPanel.el);
     panelsGrid.appendChild(countryPanel.el);
@@ -76,6 +85,8 @@ export async function initApp(): Promise<void> {
     ctx.panels.set(chatPanel.id,      chatPanel);
     ctx.panels.set(countryPanel.id,   countryPanel);
     ctx.panels.set(trendPanel.id,     trendPanel);
+    ctx.panels.set(signalsPanel.id,  signalsPanel);
+    ctx.panels.set(provinceDive.id,  provinceDive);
 
     // 6. Mount map layer controls (top-left overlay on the map)
     new MapLayerControls(mapContainer);
@@ -130,6 +141,21 @@ export async function initApp(): Promise<void> {
 
     outbreaksPanel.updateData(outbreaks);
     newsPanel.updateData(news);
+
+    // Cross-source signal detection
+    const signals = detectCrossSourceSignals(outbreaks, news);
+    signalsPanel.updateData(signals, outbreaks);
+
+    // Breaking news banner — show if any ALERT-level outbreak
+    const alertOutbreaks = outbreaks.filter(o => o.alertLevel === 'alert');
+    if (alertOutbreaks.length > 0) {
+      const top = alertOutbreaks[0];
+      const totalCases = alertOutbreaks.reduce((s, o) => s + (o.cases ?? 0), 0);
+      banner.show(
+        `${top.disease} — ${alertOutbreaks.length} ổ dịch cấp ALERT, ${totalCases.toLocaleString()} ca`,
+        'alert',
+      );
+    }
 
     // Snapshot store: save current data + compute trends
     try {
@@ -200,6 +226,7 @@ export async function initApp(): Promise<void> {
     // 12. Fetch climate forecasts + compute early warnings (non-blocking)
     fetchClimateForecasts().then((forecasts) => {
       climatePanel.updateData(forecasts);
+      provinceDive.setClimate(forecasts);
 
       // Early warnings: provinces with HIGH climate risk but NO active outbreak
       const outbreakProvinces = new Set(outbreaks.map(o => o.country));
