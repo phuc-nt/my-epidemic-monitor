@@ -57,31 +57,89 @@ export async function processNews(news: NewsItem[]): Promise<void> {
 // Rule-based transforms (always available, fast)
 // ---------------------------------------------------------------------------
 
-const DISEASE_ALIASES: Record<string, string> = {
-  'dengue fever': 'Sốt xuất huyết (Dengue)',
-  'dengue': 'Sốt xuất huyết (Dengue)',
-  'covid-19': 'COVID-19',
-  'covid': 'COVID-19',
-  'coronavirus': 'COVID-19',
-  'influenza': 'Cúm (Influenza)',
-  'influenza a': 'Cúm A (Influenza A)',
-  'hand, foot and mouth': 'Tay chân miệng (HFMD)',
-  'hfmd': 'Tay chân miệng (HFMD)',
-  'measles': 'Sởi (Measles)',
-  'cholera': 'Tả (Cholera)',
-  'mpox': 'Đậu mùa khỉ (Mpox)',
-  'avian influenza': 'Cúm gia cầm (Avian Influenza)',
-  'rabies': 'Dại (Rabies)',
-  'typhoid': 'Thương hàn (Typhoid)',
-  'malaria': 'Sốt rét (Malaria)',
-};
+/**
+ * Disease alias lookup — sorted longest-first to avoid partial matches.
+ * Includes both English (WHO/CDC) and Vietnamese (MOH-VN) variants.
+ */
+const DISEASE_ALIASES: [string, string][] = [
+  // English — longer/specific aliases first
+  ['avian influenza', 'Cúm gia cầm (Avian Influenza)'],
+  ['dengue haemorrhagic fever', 'Sốt xuất huyết (Dengue)'],
+  ['dengue fever', 'Sốt xuất huyết (Dengue)'],
+  ['dengue', 'Sốt xuất huyết (Dengue)'],
+  ['hand, foot and mouth', 'Tay chân miệng (HFMD)'],
+  ['hfmd', 'Tay chân miệng (HFMD)'],
+  ['covid-19', 'COVID-19'],
+  ['covid', 'COVID-19'],
+  ['coronavirus', 'COVID-19'],
+  ['severe acute respiratory syndrome', 'SARS'],
+  ['influenza a', 'Cúm A (Influenza A)'],
+  ['influenza', 'Cúm (Influenza)'],
+  ['measles', 'Sởi (Measles)'],
+  ['cholera', 'Tả (Cholera)'],
+  ['mpox', 'Đậu mùa khỉ (Mpox)'],
+  ['monkeypox', 'Đậu mùa khỉ (Mpox)'],
+  ['rabies', 'Dại (Rabies)'],
+  ['typhoid', 'Thương hàn (Typhoid)'],
+  ['malaria', 'Sốt rét (Malaria)'],
+  ['yellow fever', 'Sốt vàng da (Yellow Fever)'],
+  ['plague', 'Dịch hạch (Plague)'],
+  ['marburg', 'Marburg'],
+  ['ebola', 'Ebola'],
+  ['lassa fever', 'Sốt Lassa (Lassa Fever)'],
+  ['meningococcal', 'Viêm màng não (Meningococcal)'],
+  ['diphtheria', 'Bạch hầu (Diphtheria)'],
+  ['pertussis', 'Ho gà (Pertussis)'],
+  ['polio', 'Bại liệt (Polio)'],
+  ['rift valley fever', 'Sốt Rift Valley'],
+  ['japanese encephalitis', 'Viêm não Nhật Bản (JE)'],
+  ['chikungunya', 'Sốt Chikungunya'],
+  ['zika', 'Zika'],
+  ['nipah', 'Nipah'],
+  ['mers', 'MERS-CoV'],
+  ['hepatitis a', 'Viêm gan A (Hepatitis A)'],
+  ['hepatitis e', 'Viêm gan E (Hepatitis E)'],
+  ['hepatitis b', 'Viêm gan B (Hepatitis B)'],
+  ['tuberculosis', 'Lao (Tuberculosis)'],
+  ['leprosy', 'Phong (Leprosy)'],
+  ['leptospirosis', 'Leptospirosis'],
+  ['crimean-congo', 'Sốt xuất huyết Crimean-Congo'],
+  ['acute flaccid paralysis', 'Liệt mềm cấp (AFP)'],
+  // Vietnamese — MOH-VN/WHO-VN patterns
+  ['sốt xuất huyết', 'Sốt xuất huyết (Dengue)'],
+  ['tay chân miệng', 'Tay chân miệng (HFMD)'],
+  ['cúm gia cầm', 'Cúm gia cầm (Avian Influenza)'],
+  ['cúm a', 'Cúm A (Influenza A)'],
+  ['cúm mùa', 'Cúm (Influenza)'],
+  ['sởi', 'Sởi (Measles)'],
+  ['dịch tả', 'Tả (Cholera)'],
+  ['bệnh dại', 'Dại (Rabies)'],
+  ['sốt rét', 'Sốt rét (Malaria)'],
+  ['bạch hầu', 'Bạch hầu (Diphtheria)'],
+  ['ho gà', 'Ho gà (Pertussis)'],
+  ['thương hàn', 'Thương hàn (Typhoid)'],
+  ['viêm não nhật bản', 'Viêm não Nhật Bản (JE)'],
+  ['sốt chikungunya', 'Sốt Chikungunya'],
+  ['sốt zika', 'Zika'],
+  ['đậu mùa khỉ', 'Đậu mùa khỉ (Mpox)'],
+  ['viêm gan a', 'Viêm gan A (Hepatitis A)'],
+  ['viêm gan e', 'Viêm gan E (Hepatitis E)'],
+  ['bệnh lao', 'Lao (Tuberculosis)'],
+  ['sốt vàng da', 'Sốt vàng da (Yellow Fever)'],
+  ['dịch hạch', 'Dịch hạch (Plague)'],
+  ['bệnh ebola', 'Ebola'],
+  ['bệnh marburg', 'Marburg'],
+  ['bệnh leptospirosis', 'Leptospirosis'],
+  ['bại liệt', 'Bại liệt (Polio)'],
+];
 
+/** Match disease name against aliases. Longest match first (array order). */
 function normalizeDiseaseNameRule(name: string): string {
   const lower = name.toLowerCase().trim();
-  for (const [alias, normalized] of Object.entries(DISEASE_ALIASES)) {
+  for (const [alias, normalized] of DISEASE_ALIASES) {
     if (lower.includes(alias)) return normalized;
   }
-  return name; // Return original if no match
+  return name;
 }
 
 function cleanText(text: string): string {
@@ -100,37 +158,47 @@ function cleanText(text: string): string {
 // LLM-powered enrichment (optional, runs when LLM available)
 // ---------------------------------------------------------------------------
 
+/**
+ * Enrich outbreaks in batches of 5 via LLM.
+ * Extracts: cases, deaths from summary text.
+ * Processes ALL items (not just first 5) by chunking.
+ */
 async function enrichOutbreaksBatch(items: DiseaseOutbreakItem[]): Promise<void> {
   if (!_completeFn) return;
 
-  // Batch up to 5 items per LLM call
-  const batch = items.slice(0, 5);
-  const prompt = `Extract case counts from these outbreak summaries. Return JSON array.
-Each entry: { "id": "...", "cases": number|null, "deaths": number|null }
+  // Process in chunks of 5 to stay within token limits
+  for (let start = 0; start < items.length; start += 5) {
+    const batch = items.slice(start, start + 5);
+    const prompt = `Extract case counts and deaths from these Vietnamese/English outbreak summaries.
+Return a JSON array. Each entry: { "idx": number, "cases": number|null, "deaths": number|null }
+If no numbers found, set null.
 
-${batch.map((o, i) => `[${i}] id="${o.id}" — ${o.summary.slice(0, 150)}`).join('\n')}
+${batch.map((o, i) => `[${i}] ${o.disease} — ${o.summary.slice(0, 200)}`).join('\n')}
 
-Return ONLY valid JSON array, no explanation.`;
+Return ONLY valid JSON array.`;
 
-  try {
-    const result = await _completeFn([
-      { role: 'system' as const, content: 'You extract structured data from text. Return only valid JSON.' },
-      { role: 'user' as const, content: prompt },
-    ]);
+    try {
+      const result = await _completeFn([
+        { role: 'system' as const, content: 'Extract numbers from text. Return only valid JSON array. No explanation.' },
+        { role: 'user' as const, content: prompt },
+      ]);
 
-    const parsed = JSON.parse(result.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, ''));
-    if (Array.isArray(parsed)) {
-      for (const entry of parsed) {
-        const item = batch.find(o => o.id === entry.id);
-        if (item && entry.cases != null) {
-          item.cases = Number(entry.cases) || undefined;
-          item.deaths = Number(entry.deaths) || undefined;
-          _processedCache.set(item.id, true);
+      const json = result.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+      const parsed = JSON.parse(json);
+      if (Array.isArray(parsed)) {
+        for (const entry of parsed) {
+          const idx = typeof entry.idx === 'number' ? entry.idx : -1;
+          if (idx >= 0 && idx < batch.length) {
+            const item = batch[idx];
+            if (entry.cases != null) item.cases = Number(entry.cases) || undefined;
+            if (entry.deaths != null) item.deaths = Number(entry.deaths) || undefined;
+            _processedCache.set(item.id, true);
+          }
         }
       }
+    } catch {
+      // LLM extraction failed for this batch — continue with next
     }
-  } catch {
-    // LLM extraction failed — no problem, rule-based data still works
   }
 }
 

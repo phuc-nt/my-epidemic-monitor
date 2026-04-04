@@ -1,7 +1,7 @@
 /**
  * OpenRouter provider adapter — default for web users.
  * Base URL: https://openrouter.ai/api/v1
- * Default model: minimax/minimax-m1-80k
+ * Default model: minimax/minimax-m2.7
  * Requires an API key stored in localStorage via settings.
  */
 
@@ -9,11 +9,11 @@ import type { LLMProvider, LLMProviderConfig, ChatMessage } from '@/types/llm-ty
 import { readSSEStream } from '@/services/llm-sse-stream-reader';
 
 const BASE_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_MODEL = 'minimax/minimax-m1-80k';
+const DEFAULT_MODEL = 'minimax/minimax-m2.7';
 
 /** Curated model list — avoids fetching 200+ models from the API. */
 const CURATED_MODELS = [
-  'minimax/minimax-m1-80k',
+  'minimax/minimax-m2.7',
   'google/gemma-3-4b-it:free',
   'meta-llama/llama-3.2-3b-instruct:free',
 ];

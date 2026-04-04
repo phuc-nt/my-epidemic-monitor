@@ -33,7 +33,7 @@ export async function initLLM(): Promise<LLMProvider | null> {
   // Build candidate list
   const orKey = getJSON<string>('openrouter-api-key', '');
   if (orKey) {
-    const orModel = getJSON<string>('openrouter-model', 'minimax/minimax-m1-80k');
+    const orModel = getJSON<string>('openrouter-model', 'minimax/minimax-m2.7');
     candidates.push(createOpenRouterProvider(orKey, orModel));
   }
   candidates.push(createOllamaProvider());
