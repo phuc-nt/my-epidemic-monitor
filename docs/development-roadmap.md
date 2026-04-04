@@ -21,10 +21,26 @@
 - [x] High-res vector basemap (OpenFreeMap bright)
 - [x] LLM data pipeline (auto disease name normalization, entity extraction)
 
+### Data & Analytics
+- [x] IndexedDB snapshot persistence (30-day retention, survives reload)
+- [x] Trend calculator (time-series per disease, stats delta, fastest-growing ranking)
+- [x] LLM-enhanced news dedup (Jaccard rule-based + LLM tier 2 for ambiguous pairs)
+- [x] Disease normalization: 67 aliases EN+VN, 100% coverage (was 29%)
+- [x] Entity extraction: batch ALL items (was only first 5)
+
+### Map Intelligence
+- [x] District-level GeoJSON boundaries (708 quận/huyện, geoBoundaries ADM2)
+- [x] District choropleth layer (fill color by outbreak severity)
+- [x] Early warning overlay (climate HIGH + no outbreak → amber markers)
+- [x] Alert escalation detection (watch→warning→alert badges)
+- [x] District-level sample data (TPHCM: 5 quận, HN: 2 quận)
+- [x] 5 map layer toggles: Districts, Markers, Heatmap, Country, Early Warnings
+
 ### Quality
-- [x] 15 E2E tests (Playwright, all pass)
+- [x] 25 E2E tests (Playwright, all pass)
 - [x] TypeScript strict mode, Biome lint clean
-- [x] Production build 455KB gzipped
+- [x] Production build ~460KB gzipped
+- [x] 52 TS files, 4774 lines code
 
 ---
 
@@ -86,16 +102,20 @@
 
 ---
 
-## Metrics Snapshot (2026-04-04)
+## Metrics Snapshot (2026-04-04 evening)
 
 | Metric | Value |
 |--------|-------|
-| TypeScript files | 47 |
-| Total TS lines | 3,939 |
-| CSS lines | 831 |
+| TypeScript files | 52 |
+| Total TS lines | 4,774 |
+| CSS files | 5 |
 | Panels | 8 |
+| Map layers | 5 (districts, markers, heatmap, country, early warnings) |
 | Data sources | 10 (9 RSS/CSV + 1 weather API) |
-| E2E tests | 15 |
-| Bundle size | 455KB gzip |
-| LLM providers | 3 |
-| Git commits | 14 |
+| District boundaries | 708 (geoBoundaries VNM ADM2) |
+| Disease aliases | 67 (EN + VN, 100% coverage) |
+| E2E tests | 25 |
+| Bundle size | ~460KB gzip |
+| LLM providers | 3 (OpenRouter MiniMax M2.7 default) |
+| IndexedDB snapshots | 30-day retention |
+| Git commits | 22 |

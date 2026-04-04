@@ -8,14 +8,14 @@ Derived from [WorldMonitor](https://github.com/koala73/worldmonitor), stripped d
 
 | Feature | Description |
 |---------|-------------|
-| **Disease Outbreaks** | 8+ outbreak alerts with severity filter (ALERT/WARNING/WATCH) |
-| **Climate Risk Forecast** | 14-day dengue/HFMD risk prediction for 8 provinces via Open-Meteo |
-| **Interactive Map** | deck.gl + MapLibre GL — outbreak markers, severity heatmap, time filter |
-| **AI Assistant** | Chat with epidemic data in Vietnamese/English (Ollama/OpenRouter/MLX) |
-| **Case Report Form** | Multi-disease reporting for 63 provinces, offline localStorage queue |
-| **Health News** | 7 RSS feeds: WHO, CDC, MOH-VN, ProMED, ECDC, ReliefWeb |
-| **Statistics** | Total outbreaks, active alerts, top diseases |
-| **Country Health** | Per-country risk profile + disease list |
+| **Disease Outbreaks** | District-level alerts with severity filter, escalation badges |
+| **District Map** | 708 quận/huyện boundaries (geoBoundaries), choropleth by severity |
+| **Climate Risk Forecast** | 14-day dengue/HFMD risk for 8 provinces, early warning overlay |
+| **AI Assistant** | Chat with data in VN/EN (MiniMax M2.7 / Ollama / MLX streaming) |
+| **Case Report Form** | Multi-disease for 63 provinces, offline localStorage queue |
+| **Health News** | 7 RSS feeds, LLM-enhanced dedup (Jaccard + MiniMax) |
+| **Statistics + Trends** | Delta arrows ↑↓, trend banner, IndexedDB 30-day history |
+| **5 Map Layers** | Districts, Markers, Heatmap, Country Risk, Early Warnings |
 
 ## Quick Start
 

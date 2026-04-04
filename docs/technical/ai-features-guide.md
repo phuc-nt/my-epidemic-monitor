@@ -248,9 +248,10 @@ Chat dùng streaming qua Server-Sent Events:
 | # | Tính năng | Model | Khi nào chạy | Bắt buộc? | Fallback |
 |---|-----------|-------|-------------|-----------|----------|
 | 1 | Chat hỏi đáp | Active provider (streaming) | User gửi message | Không | Panel vẫn render |
-| 2 | Disease normalization | Rule-based (14 alias) | Mỗi data fetch | Luôn | N/A (không cần LLM) |
-| 3 | Entity extraction | Active provider (batch) | Background sau fetch | Không | Skip, data vẫn hiện |
-| 4 | News dedup | Active provider (batch) | Background sau fetch | Không | Hiện tất cả tin |
-| 5 | Context building | N/A (string template) | Trước mỗi chat | Tự động | N/A |
+| 2 | Disease normalization | Rule-based (67 alias EN+VN) | Mỗi data fetch | Luôn | N/A (không cần LLM) |
+| 3 | Entity extraction | Active provider (batch ALL) | Background sau fetch | Không | Skip, data vẫn hiện |
+| 4 | News dedup Tier 1 | Rule-based (Jaccard similarity) | Mỗi news fetch | Luôn | N/A (không cần LLM) |
+| 5 | News dedup Tier 2 | Active provider (ambiguous pairs) | Sau Tier 1 | Không | Tier 1 đủ |
+| 6 | Context building | N/A (string template) | Trước mỗi chat | Tự động | N/A |
 
 **Thiết kế nguyên tắc**: LLM enhance, không block. App hoạt động 100% khi offline — LLM chỉ thêm intelligence layer.

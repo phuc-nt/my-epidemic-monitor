@@ -118,27 +118,34 @@ Event bus: outbreak-selected → flyTo + popup
 | Dev server startup | ~200ms |
 | E2E test suite | 15 tests, 39s |
 | Panels | 8 (vs 119 in worldmonitor) |
-| Map layers | 3 (vs 45 in worldmonitor) |
-| Data sources | 9 active + 1 climate API |
-| LLM providers | 3 (OpenRouter, Ollama, MLX) |
-| Git commits | 14 |
+| Map layers | 5 (vs 45 in worldmonitor) |
+| District boundaries | 708 (geoBoundaries VNM ADM2) |
+| Disease aliases | 67 (EN + VN, 100% match rate) |
+| Data sources | 10 active + 1 static GeoJSON |
+| LLM providers | 3 (OpenRouter MiniMax M2.7 default) |
+| E2E tests | 25 |
+| Git commits | 22 |
 
 ## Feature Inventory (final state)
 
 | # | Panel/Feature | Mô tả |
 |---|---------------|--------|
-| 1 | Disease Outbreaks | 8 alerts, filter by severity + search, click → map flyTo |
+| 1 | Disease Outbreaks | 13 alerts (district-level), filter, search, escalation badges |
 | 2 | Climate Risk Forecast | Open-Meteo → dengue/HFMD risk 14 ngày, 8 tỉnh, alert banner |
-| 3 | Epidemic Statistics | Counters (outbreaks/alerts/countries) + top diseases table |
-| 4 | Health News | 7 RSS feeds (WHO, CDC, MOH-VN...), source filter badges |
+| 3 | Epidemic Statistics | Counters + delta arrows (↑↓) + trend banner + top diseases |
+| 4 | Health News | 7 RSS feeds, source filter, LLM-enhanced dedup |
 | 5 | Case Report Form | 6 diseases, 63 tỉnh, localStorage queue, recent list |
-| 6 | AI Assistant | Chat streaming, Ollama/OpenRouter/MLX, data-grounded answers |
-| 7 | Country Health Profile | Per-country risk + diseases (placeholder until map click) |
-| 8 | Disease Trend | SVG sparkline chart (placeholder until time-series data) |
-| 9 | Map Time Filter | 24h/7d/30d/All buttons filter outbreaks on map |
-| 10 | Map Layer Controls | Toggle markers/heatmap/choropleth |
+| 6 | AI Assistant | Chat streaming, MiniMax M2.7/Ollama/MLX, data-grounded |
+| 7 | Country Health Profile | Per-country risk + diseases |
+| 8 | Disease Trend | SVG sparkline from IndexedDB snapshot time-series |
+| 9 | Map Time Filter | 24h/7d/30d/All buttons filter outbreaks |
+| 10 | Map Layer Controls | 5 toggles: Districts, Markers, Heatmap, Country, Early Warnings |
 | 11 | Map Popup | Click outbreak marker → details popup |
-| 12 | LLM Data Pipeline | Auto disease name normalization + entity extraction |
+| 12 | District Choropleth | 708 quận/huyện boundaries, fill by severity |
+| 13 | Early Warning Overlay | Amber markers for climate HIGH + no outbreak |
+| 14 | Alert Escalation | Purple "ESCALATED" badge on severity upgrades |
+| 15 | LLM Data Pipeline | 67-alias normalization + batch entity extraction + Jaccard dedup |
+| 16 | IndexedDB Snapshots | 30-day outbreak history, trend computation |
 
 ## Quyết định thiết kế quan trọng
 1. **Vanilla TS, không framework** — giữ nguyên pattern worldmonitor, nhẹ, nhanh

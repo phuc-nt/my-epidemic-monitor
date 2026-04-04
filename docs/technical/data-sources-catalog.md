@@ -10,6 +10,8 @@ Tài liệu quản lý tất cả nguồn dữ liệu của hệ thống. Mỗi 
 |---|--------|------|----------|-----------|------------|
 | 1 | WHO DON | RSS/XML | Outbreak alerts toàn cầu | 5 phút | Active |
 | 2 | WHO News | RSS/XML | Tin tức y tế toàn cầu | 15 phút | Active |
+| 10 | Open-Meteo | REST/JSON | Weather forecast 14 ngày, 8 tỉnh VN | 6 giờ | Active |
+| 11 | geoBoundaries | GeoJSON | 708 district boundaries VNM ADM2 | Static | Active |
 | 3 | WHO Vietnam | RSS/XML | Tin tức WHO khu vực VN | 15 phút | Active |
 | 4 | Bộ Y tế VN (MOH) | RSS/XML | Tin tức y tế Việt Nam | 15 phút | Active |
 | 5 | US CDC | RSS/XML | Tin tức CDC Hoa Kỳ | 15 phút | Active |
