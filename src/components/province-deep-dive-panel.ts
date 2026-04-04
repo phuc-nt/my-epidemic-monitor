@@ -30,7 +30,7 @@ export class ProvinceDeepDivePanel extends Panel {
   constructor() {
     super({
       id: 'province-deep-dive',
-      title: 'PROVINCE DEEP DIVE',
+      title: 'Province Deep Dive',
       defaultRowSpan: 3,
     });
 

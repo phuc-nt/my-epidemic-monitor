@@ -36,6 +36,7 @@ export class DiseaseOutbreaksPanel extends Panel {
   private _escalations: Set<string> = new Set();
   private _filter: AlertLevel | null = null;
   private _search = '';
+  private _showAll = false;
   private _filterBar: HTMLElement;
   private _searchInput: HTMLInputElement;
   private _listEl: HTMLElement;
@@ -156,8 +157,22 @@ export class DiseaseOutbreaksPanel extends Panel {
       return;
     }
 
-    for (const item of items) {
+    const MAX_VISIBLE = 5;
+    const visible = this._showAll ? items : items.slice(0, MAX_VISIBLE);
+    for (const item of visible) {
       this._listEl.appendChild(this._buildRow(item));
+    }
+
+    // "Show more" button if truncated
+    if (!this._showAll && items.length > MAX_VISIBLE) {
+      const more = h('button', { className: 'outbreak-show-more' },
+        `Xem thêm (${items.length - MAX_VISIBLE} mục)`);
+      more.addEventListener('click', () => { this._showAll = true; this._render(); });
+      this._listEl.appendChild(more);
+    } else if (this._showAll && items.length > MAX_VISIBLE) {
+      const less = h('button', { className: 'outbreak-show-more' }, 'Thu gọn');
+      less.addEventListener('click', () => { this._showAll = false; this._render(); });
+      this._listEl.appendChild(less);
     }
   }
 

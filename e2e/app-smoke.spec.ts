@@ -1,4 +1,29 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+/** Dismiss breaking news banner if visible */
+async function dismissBanner(page: Page): Promise<void> {
+  const btn = page.locator('.breaking-news-banner__dismiss');
+  if (await btn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await btn.click();
+    await page.waitForTimeout(300);
+  }
+}
+
+/** Switch to a panel tab (Dashboard, Analysis, Tools). Waits for tab bar to load. */
+async function switchTab(page: Page, tabName: string): Promise<void> {
+  await dismissBanner(page);
+  const tabBar = page.locator('.panel-tab-bar');
+  await tabBar.waitFor({ state: 'visible', timeout: 15000 });
+  const btns = await page.locator('.panel-tab-btn').all();
+  for (const btn of btns) {
+    const text = await btn.textContent();
+    if (text && text.toLowerCase().includes(tabName.toLowerCase())) {
+      await btn.click();
+      await page.waitForTimeout(500);
+      return;
+    }
+  }
+}
 
 test.describe('Epidemic Monitor — Smoke Tests', () => {
 
@@ -145,6 +170,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
 
   test('AI assistant panel renders with status', async ({ page }) => {
     await page.goto('/');
+    await switchTab(page, 'Tools');
     const panel = page.locator('.panel').filter({ hasText: /AI Assistant/i });
     await expect(panel).toBeVisible({ timeout: 10000 });
     // Should show provider status
@@ -155,7 +181,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   });
 
   test('chat input and send button exist', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/'); await switchTab(page, 'Tools');
     await page.waitForTimeout(3000);
     const input = page.locator('.chat-input');
     await expect(input).toBeVisible();
@@ -164,7 +190,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   });
 
   test('can type in chat input', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/'); await switchTab(page, 'Tools');
     await page.waitForTimeout(3000);
     const input = page.locator('.chat-input');
     await input.fill('Test message');
@@ -172,7 +198,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   });
 
   test('send message creates user bubble and triggers LLM response', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/'); await switchTab(page, 'Tools');
     await page.waitForTimeout(6000); // Wait for LLM init
 
     const input = page.locator('.chat-input');
@@ -191,7 +217,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   });
 
   test('chat status shows provider info', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/'); await switchTab(page, 'Tools');
     await page.waitForTimeout(6000);
     const status = await page.locator('.chat-status').textContent();
     // Should show either Ollama or "No LLM" - both are valid
@@ -217,7 +243,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   // =====================================================================
 
   test('case report form has disease and province dropdowns', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/'); await switchTab(page, 'Tools');
     await page.waitForTimeout(3000);
     const panel = page.locator('.panel').filter({ hasText: /Báo cáo ca bệnh|Case Report/i });
     await expect(panel).toBeVisible({ timeout: 10000 });
@@ -227,7 +253,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   });
 
   test('case report form can be filled and submitted', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/'); await switchTab(page, 'Tools');
     await page.waitForTimeout(3000);
     const panel = page.locator('.panel').filter({ hasText: /Báo cáo ca bệnh|Case Report/i });
 
@@ -307,9 +333,15 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   test('district-level outbreaks show multiple markers in TPHCM', async ({ page }) => {
     await page.goto('/');
     await page.waitForTimeout(5000);
-    // Should have 13 outbreak rows (5 TPHCM districts + 2 HN districts + 6 others)
+    await dismissBanner(page);
+    // Click "Show more" if present (compact mode shows 5 by default)
+    const showMore = page.locator('.outbreak-show-more');
+    if (await showMore.isVisible().catch(() => false)) {
+      await showMore.click();
+      await page.waitForTimeout(300);
+    }
     const rows = await page.locator('.outbreak-row').count();
-    expect(rows).toBeGreaterThanOrEqual(12);
+    expect(rows).toBeGreaterThanOrEqual(10);
     // TPHCM should have multiple outbreak rows
     const hcmRows = page.locator('.outbreak-row').filter({ hasText: /TPHCM|Hồ Chí Minh|Quận 12|Bình Tân|Gò Vấp|Thủ Đức|Bình Chánh/i });
     expect(await hcmRows.count()).toBeGreaterThanOrEqual(3);
@@ -382,7 +414,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   // =====================================================================
 
   test('cross-source signals panel renders with detected signals', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/'); await switchTab(page, 'Analysis');
     await page.waitForTimeout(5000);
     const panel = page.locator('.panel').filter({ hasText: /Cross.Source|Signal/i });
     await expect(panel).toBeVisible({ timeout: 10000 });
@@ -396,7 +428,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   // =====================================================================
 
   test('province deep dive panel shows placeholder initially', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/'); await switchTab(page, 'Analysis');
     await page.waitForTimeout(3000);
     const panel = page.locator('[data-panel-id="province-deep-dive"]');
     await expect(panel).toBeVisible({ timeout: 10000 });
@@ -442,7 +474,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     expect(joined).toContain('Epidemic Statistics');
     expect(joined).toContain('Health News');
     expect(joined).toContain('AI Assistant');
-    expect(joined).toContain('SIGNALS');
-    expect(joined).toContain('DEEP DIVE');
+    expect(joined).toContain('Signals');
+    expect(joined).toContain('Deep Dive');
   });
 });

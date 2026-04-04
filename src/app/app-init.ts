@@ -9,6 +9,7 @@
  */
 
 import { createLayout } from '@/app/app-layout';
+import { h } from '@/utils/dom-utils';
 import { MapShell } from '@/components/map-shell';
 import { ctx, on, emit } from '@/app/app-context';
 
@@ -64,17 +65,47 @@ export async function initApp(): Promise<void> {
     const provinceDive   = new ProvinceDeepDivePanel();
     const banner         = new BreakingNewsBanner();
 
-    // 4. Mount panels into grid
-    panelsGrid.appendChild(outbreaksPanel.el);
-    panelsGrid.appendChild(climatePanel.el);
-    panelsGrid.appendChild(signalsPanel.el);
-    panelsGrid.appendChild(statsPanel.el);
-    panelsGrid.appendChild(newsPanel.el);
-    panelsGrid.appendChild(provinceDive.el);
-    panelsGrid.appendChild(caseReportPanel.el);
-    panelsGrid.appendChild(chatPanel.el);
-    panelsGrid.appendChild(countryPanel.el);
-    panelsGrid.appendChild(trendPanel.el);
+    // 4. Mount panels into tabbed groups
+    const tabGroups: Record<string, { label: string; panels: HTMLElement[] }> = {
+      dashboard: { label: 'Dashboard', panels: [outbreaksPanel.el, climatePanel.el, statsPanel.el, newsPanel.el] },
+      analysis:  { label: 'Analysis',  panels: [signalsPanel.el, provinceDive.el, trendPanel.el, countryPanel.el] },
+      tools:     { label: 'Tools',     panels: [caseReportPanel.el, chatPanel.el] },
+    };
+
+    // Build tab bar
+    const tabBar = h('div', { className: 'panel-tab-bar' });
+    let activeTab = 'dashboard';
+
+    function showTab(tabId: string): void {
+      activeTab = tabId;
+      // Update tab buttons
+      for (const btn of tabBar.querySelectorAll('.panel-tab-btn')) {
+        btn.classList.toggle('panel-tab-btn--active', (btn as HTMLElement).dataset['tab'] === tabId);
+      }
+      // Show/hide panel groups
+      for (const [id, group] of Object.entries(tabGroups)) {
+        for (const el of group.panels) {
+          el.style.display = id === tabId ? '' : 'none';
+        }
+      }
+    }
+
+    for (const [id, group] of Object.entries(tabGroups)) {
+      const btn = h('button', {
+        className: `panel-tab-btn${id === activeTab ? ' panel-tab-btn--active' : ''}`,
+        dataset: { tab: id },
+      }, group.label);
+      btn.addEventListener('click', () => showTab(id));
+      tabBar.appendChild(btn);
+    }
+
+    panelsGrid.insertBefore(tabBar, panelsGrid.firstChild);
+
+    // Mount all panels (visibility controlled by showTab)
+    for (const group of Object.values(tabGroups)) {
+      for (const el of group.panels) panelsGrid.appendChild(el);
+    }
+    showTab('dashboard');
 
     // 5. Store panel refs in context
     ctx.panels.set(outbreaksPanel.id, outbreaksPanel);

@@ -62,6 +62,8 @@ html, body {
   height: 100vh;
   min-height: 0;
   background: var(--bg);
+  border-right: 1px solid var(--border);
+  box-shadow: 2px 0 8px rgba(0,0,0,0.06);
 }
 
 /* ── Panels grid ──────────────────────────────────────────── */
@@ -75,6 +77,23 @@ html, body {
   height: 100vh;
   background: var(--bg);
 }
+
+/* ── Panel tab bar ───────────────────────────────────────── */
+
+.panel-tab-bar {
+  display: flex; gap: 0; border-bottom: 2px solid var(--border);
+  margin-bottom: 6px; flex-shrink: 0; position: sticky; top: 0;
+  background: var(--bg); z-index: 10; padding: 0 2px;
+}
+.panel-tab-btn {
+  padding: 8px 16px; border: none; background: none; cursor: pointer;
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-muted);
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.panel-tab-btn:hover { color: var(--text); }
+.panel-tab-btn--active { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* ── Panel cards ──────────────────────────────────────────── */
 
@@ -260,6 +279,13 @@ html, body {
 .outbreak-row-link { font-size: 11px; color: var(--accent); text-decoration: none; }
 .outbreak-row-link:hover { text-decoration: underline; }
 .outbreak-empty { color: var(--text-muted); font-size: 12px; text-align: center; padding: 12px; }
+.outbreak-show-more {
+  display: block; width: 100%; padding: 6px; margin-top: 4px;
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  background: none; color: var(--accent); font-size: 12px; font-weight: 600;
+  cursor: pointer; text-align: center;
+}
+.outbreak-show-more:hover { background: var(--surface2); }
 
 .escalation-badge {
   display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px;

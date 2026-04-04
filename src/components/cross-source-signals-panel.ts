@@ -49,7 +49,7 @@ export class CrossSourceSignalsPanel extends Panel {
   constructor() {
     super({
       id: 'cross-source-signals',
-      title: 'CROSS-SOURCE SIGNALS',
+      title: 'Cross-Source Signals',
       showCount: true,
       defaultRowSpan: 2,
     });

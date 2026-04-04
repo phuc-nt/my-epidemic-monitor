@@ -73,16 +73,18 @@ export class TrendChartPanel extends Panel {
     chartEl.innerHTML = chartHtml; // SVG is generated internally — safe, no user data
     root.appendChild(chartEl);
 
-    // Min / max annotation
-    if (slice.length) {
+    // Min / max annotation — only show when enough data points for meaningful trend
+    if (slice.length > 1) {
       const max = Math.max(...slice);
       const min = Math.min(...slice);
       const annotation = h('div', { className: 'trend-annotation' },
-        h('span', {}, `Min: ${min}`),
-        h('span', {}, `Max: ${max}`),
-        h('span', {}, `Data points: ${slice.length}`),
+        h('span', {}, `Min: ${min.toLocaleString()}`),
+        h('span', {}, `Max: ${max.toLocaleString()}`),
+        h('span', {}, `${slice.length} data points`),
       );
       root.appendChild(annotation);
+    } else if (slice.length === 1) {
+      root.appendChild(h('p', { className: 'trend-placeholder' }, 'Cần thêm dữ liệu để hiển thị xu hướng'));
     }
 
     this.setContentNode(root);
