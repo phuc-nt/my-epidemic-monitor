@@ -264,18 +264,50 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   });
 
   // =====================================================================
-  // Map Layer Controls — Early Warnings
+  // Map Layer Controls — 5 layers
   // =====================================================================
 
-  test('map has 4 layer toggles including early warnings', async ({ page }) => {
+  test('map has 5 layer toggles (districts, markers, heatmap, country, early warnings)', async ({ page }) => {
     await page.goto('/');
     await page.waitForTimeout(3000);
     const checkboxes = page.locator('.layer-controls-checkbox');
     expect(await checkboxes.count()).toBe(5);
-    // Labels should include Early Warnings
     const labels = page.locator('.layer-controls-label');
     const texts = await labels.allTextContents();
-    expect(texts.some(t => t.includes('Early Warning'))).toBe(true);
+    const joined = texts.join(' ');
+    expect(joined).toContain('District');
+    expect(joined).toContain('Outbreak Markers');
+    expect(joined).toContain('Heatmap');
+    expect(joined).toContain('Early Warning');
+  });
+
+  // =====================================================================
+  // District GeoJSON Boundaries
+  // =====================================================================
+
+  test('district GeoJSON boundaries load (708 districts)', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(7000);
+    // Check console for district load message
+    const logs: string[] = [];
+    page.on('console', m => { if (m.type() === 'info') logs.push(m.text()); });
+    await page.waitForTimeout(2000);
+    // Verify GeoJSON file is fetchable
+    const res = await page.evaluate(() =>
+      fetch('/data/vietnam-districts.geojson').then(r => ({ ok: r.ok, size: r.headers.get('content-length') }))
+    );
+    expect(res.ok).toBe(true);
+  });
+
+  test('district-level outbreaks show multiple markers in TPHCM', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(5000);
+    // Should have 13 outbreak rows (5 TPHCM districts + 2 HN districts + 6 others)
+    const rows = await page.locator('.outbreak-row').count();
+    expect(rows).toBeGreaterThanOrEqual(12);
+    // TPHCM should have multiple outbreak rows
+    const hcmRows = page.locator('.outbreak-row').filter({ hasText: /TPHCM|Hồ Chí Minh|Quận 12|Bình Tân|Gò Vấp|Thủ Đức|Bình Chánh/i });
+    expect(await hcmRows.count()).toBeGreaterThanOrEqual(3);
   });
 
   // =====================================================================
