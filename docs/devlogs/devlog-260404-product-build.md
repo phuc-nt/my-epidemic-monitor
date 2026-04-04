@@ -110,10 +110,10 @@ Event bus: outbreak-selected → flyTo + popup
 ## Metrics
 | Metric | Value |
 |--------|-------|
-| TypeScript files | 47 |
-| CSS files | 5 |
-| Lines of TS code | 3,939 |
-| Lines of CSS | 831 |
+| TypeScript files | 58 |
+| CSS files | 7 |
+| Lines of TS code | 5,617 |
+| Lines of CSS | ~1,100 |
 | Production bundle | 455KB gzipped |
 | Dev server startup | ~200ms |
 | E2E test suite | 15 tests, 39s |
@@ -123,8 +123,8 @@ Event bus: outbreak-selected → flyTo + popup
 | Disease aliases | 67 (EN + VN, 100% match rate) |
 | Data sources | 10 active + 1 static GeoJSON |
 | LLM providers | 3 (OpenRouter MiniMax M2.7 default) |
-| E2E tests | 25 |
-| Git commits | 22 |
+| E2E tests | 29 |
+| Git commits | 26 |
 
 ## Feature Inventory (final state)
 
@@ -146,6 +146,10 @@ Event bus: outbreak-selected → flyTo + popup
 | 14 | Alert Escalation | Purple "ESCALATED" badge on severity upgrades |
 | 15 | LLM Data Pipeline | 67-alias normalization + batch entity extraction + Jaccard dedup |
 | 16 | IndexedDB Snapshots | 30-day outbreak history, trend computation |
+| 17 | Breaking News Banner | Auto-show on ALERT outbreaks, dismiss 30s |
+| 18 | Cross-Source Signals | Multi-source alignment detection, confidence scoring |
+| 19 | Province Deep Dive | Per-province: outbreaks + climate + news + totals |
+| 20 | YouTube Video Tab | Health videos WHO/CDC/VTV, click-to-embed |
 
 ## Quyết định thiết kế quan trọng
 1. **Vanilla TS, không framework** — giữ nguyên pattern worldmonitor, nhẹ, nhanh

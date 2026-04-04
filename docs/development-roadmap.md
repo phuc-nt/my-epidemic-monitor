@@ -36,11 +36,17 @@
 - [x] District-level sample data (TPHCM: 5 quận, HN: 2 quận)
 - [x] 5 map layer toggles: Districts, Markers, Heatmap, Country, Early Warnings
 
+### Intelligence Features
+- [x] Breaking news banner (auto-show on ALERT, dismiss 30s)
+- [x] Cross-source signal detection (confidence: HIGH/MEDIUM/LOW)
+- [x] Province deep dive panel (outbreaks + climate + news per province)
+- [x] YouTube video tab in news panel (WHO/CDC/VTV health videos)
+
 ### Quality
-- [x] 25 E2E tests (Playwright, all pass)
+- [x] 29 E2E tests (Playwright, all pass)
 - [x] TypeScript strict mode, Biome lint clean
 - [x] Production build ~460KB gzipped
-- [x] 52 TS files, 4774 lines code
+- [x] 58 TS files, 5617 lines code, 26 commits
 
 ---
 
@@ -102,20 +108,20 @@
 
 ---
 
-## Metrics Snapshot (2026-04-04 evening)
+## Metrics Snapshot (2026-04-04 final)
 
 | Metric | Value |
 |--------|-------|
-| TypeScript files | 52 |
-| Total TS lines | 4,774 |
-| CSS files | 5 |
-| Panels | 8 |
+| TypeScript files | 58 |
+| Total TS lines | 5,617 |
+| CSS files | 7 |
+| Panels | 10 |
 | Map layers | 5 (districts, markers, heatmap, country, early warnings) |
-| Data sources | 10 (9 RSS/CSV + 1 weather API) |
+| Data sources | 11 (9 RSS/CSV + 1 weather + 1 GeoJSON) |
 | District boundaries | 708 (geoBoundaries VNM ADM2) |
 | Disease aliases | 67 (EN + VN, 100% coverage) |
-| E2E tests | 25 |
+| E2E tests | 29 |
 | Bundle size | ~460KB gzip |
 | LLM providers | 3 (OpenRouter MiniMax M2.7 default) |
 | IndexedDB snapshots | 30-day retention |
-| Git commits | 22 |
+| Git commits | 26 |

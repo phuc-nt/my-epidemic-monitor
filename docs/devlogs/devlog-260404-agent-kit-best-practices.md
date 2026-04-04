@@ -224,15 +224,15 @@ Tester agent không chỉ test — nó cũng fix lint issues tìm thấy (isNaN 
 
 | Metric | Value |
 |--------|-------|
-| Total agents dispatched | ~20 |
+| Total agents dispatched | ~25 |
 | Agent types used | Explore, planner, fullstack-developer, tester, researcher |
-| Parallel dispatches | 7 rounds (2-3 agents/round) |
+| Parallel dispatches | 9 rounds (2-3 agents/round) |
 | File conflicts | 0 |
-| Manual fixes after agents | ~8 (type mismatches, DOM wipe, test assertions, wiring) |
-| Total session time | ~8 hours (06:47 → ~17:00) |
-| Files created by agents | ~50 |
-| Files created/edited by main | ~20 |
-| Final codebase | 52 TS files, 4774 lines, 25 E2E tests |
+| Manual fixes after agents | ~12 (type mismatches, DOM wipe, test assertions, wiring) |
+| Total session time | ~12 hours (06:47 → ~19:00) |
+| Files created by agents | ~55 |
+| Files created/edited by main | ~25 |
+| Final codebase | 58 TS files, 5617 lines, 29 E2E tests, 10 panels |
 
 ---
 

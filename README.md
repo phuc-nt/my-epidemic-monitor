@@ -15,6 +15,9 @@ Derived from [WorldMonitor](https://github.com/koala73/worldmonitor), stripped d
 | **Case Report Form** | Multi-disease for 63 provinces, offline localStorage queue |
 | **Health News** | 7 RSS feeds, LLM-enhanced dedup (Jaccard + MiniMax) |
 | **Statistics + Trends** | Delta arrows ↑↓, trend banner, IndexedDB 30-day history |
+| **Breaking News** | Red banner for urgent ALERT outbreaks, auto-dismiss 30s |
+| **Cross-Source Signals** | Multi-source alignment (WHO+CDC+MOH), confidence scoring |
+| **Province Deep Dive** | Per-province dashboard: outbreaks, climate, news, totals |
 | **5 Map Layers** | Districts, Markers, Heatmap, Country Risk, Early Warnings |
 
 ## Quick Start
@@ -60,7 +63,7 @@ See [docs/technical/data-sources-catalog.md](docs/technical/data-sources-catalog
 ```
 src/
 ├── app/              # AppContext, layout, init bootstrap
-├── components/       # 8 panels + map shell + layers
+├── components/       # 10 panels + map shell + layers
 ├── services/         # 13 services (data, LLM, climate, reports)
 ├── types/            # TypeScript interfaces
 ├── utils/            # DOM, sanitize, storage, sparkline
@@ -82,7 +85,7 @@ docs/                 # Product, technical, devlogs, research
 ## Testing
 
 ```bash
-npm run test:e2e      # 15 Playwright E2E tests
+npm run test:e2e      # 29 Playwright E2E tests
 npm run typecheck     # TypeScript strict mode
 npm run lint          # Biome lint
 npm run build         # Production build (455KB gzip)
