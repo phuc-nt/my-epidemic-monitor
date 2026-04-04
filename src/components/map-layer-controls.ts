@@ -15,9 +15,10 @@ interface ControlDef {
 }
 
 const CONTROLS: ControlDef[] = [
-  { name: 'markers',    label: 'Outbreak Markers' },
-  { name: 'heatmap',    label: 'Severity Heatmap' },
-  { name: 'choropleth', label: 'Country Risk'     },
+  { name: 'markers',       label: 'Outbreak Markers' },
+  { name: 'heatmap',       label: 'Severity Heatmap' },
+  { name: 'choropleth',    label: 'Country Risk'     },
+  { name: 'earlyWarnings', label: 'Early Warnings'   },
 ];
 
 const TIME_FILTERS = [

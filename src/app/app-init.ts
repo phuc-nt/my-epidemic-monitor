@@ -34,7 +34,8 @@ import { processOutbreaks, processNews, setLLMComplete } from '@/services/llm-da
 import { complete } from '@/services/llm-router';
 import { fetchClimateForecasts } from '@/services/climate-service';
 import { initSnapshotDB, saveSnapshot, getRecentSnapshots, pruneOldSnapshots } from '@/services/snapshot-store';
-import { computeStatsDelta, computeAllTrends } from '@/services/trend-calculator';
+import { computeStatsDelta, computeAllTrends, detectEscalations, detectEarlyWarnings } from '@/services/trend-calculator';
+import { setEarlyWarnings } from '@/components/map-layers/index';
 import type { DiseaseOutbreakItem, EpidemicStats, NewsItem } from '@/types';
 
 export async function initApp(): Promise<void> {
@@ -146,6 +147,12 @@ export async function initApp(): Promise<void> {
         const top = trends[0];
         trendPanel.setData(top.disease, top.points.map(p => p.value));
       }
+
+      // Detect alert escalations (watch→warning→alert)
+      const escalations = detectEscalations(snapshots);
+      if (escalations.length > 0) {
+        outbreaksPanel.setEscalations(escalations);
+      }
     } catch {
       // IndexedDB unavailable — show stats without delta
       statsPanel.updateData(stats);
@@ -181,9 +188,17 @@ export async function initApp(): Promise<void> {
       outbreaksPanel.updateData(filtered);
     });
 
-    // 11. Fetch climate forecasts (non-blocking)
+    // 11. Fetch climate forecasts + compute early warnings (non-blocking)
     fetchClimateForecasts().then((forecasts) => {
       climatePanel.updateData(forecasts);
+
+      // Early warnings: provinces with HIGH climate risk but NO active outbreak
+      const outbreakProvinces = new Set(outbreaks.map(o => o.country));
+      const warnings = detectEarlyWarnings(forecasts, outbreakProvinces);
+      if (warnings.length > 0) {
+        setEarlyWarnings(warnings);
+        console.info(`[EpidemicMonitor] ${warnings.length} early warning(s): ${warnings.map(w => w.province).join(', ')}`);
+      }
     }).catch(() => {
       // Climate panel shows sample data via service fallback
     });

@@ -8,6 +8,7 @@ import { emit } from '@/app/app-context';
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
 import { h } from '@/utils/dom-utils';
 import type { DiseaseOutbreakItem, AlertLevel } from '@/types';
+import type { EscalationInfo } from '@/services/trend-calculator';
 
 const ALERT_LABELS: Record<AlertLevel, string> = {
   alert: 'ALERT',
@@ -32,6 +33,7 @@ function relativeTime(ts: number): string {
 
 export class DiseaseOutbreaksPanel extends Panel {
   private _outbreaks: DiseaseOutbreakItem[] = [];
+  private _escalations: Set<string> = new Set();
   private _filter: AlertLevel | null = null;
   private _search = '';
   private _filterBar: HTMLElement;
@@ -53,6 +55,12 @@ export class DiseaseOutbreaksPanel extends Panel {
     // Insert toolbar before content scroll area
     this.content.appendChild(toolbar);
     this.content.appendChild(this._listEl);
+  }
+
+  /** Set escalation info — outbreaks that recently increased severity. */
+  setEscalations(escalations: EscalationInfo[]): void {
+    this._escalations = new Set(escalations.map(e => e.outbreakId));
+    this._render();
   }
 
   /** Called by app-init when fresh outbreak data arrives. */
@@ -159,9 +167,14 @@ export class DiseaseOutbreaksPanel extends Panel {
       style: `background:${ALERT_COLORS[item.alertLevel]}`,
     }, ALERT_LABELS[item.alertLevel]);
 
+    // Escalation badge if this outbreak recently upgraded severity
+    const outbreakKey = `${item.disease}|${item.countryCode}`;
+    const escalated = this._escalations.has(outbreakKey);
+
     const title = h('span', { className: 'outbreak-row-title' }, escapeHtml(item.disease));
     const meta = h('span', { className: 'outbreak-row-meta' },
       escapeHtml(item.country), ' · ', relativeTime(item.publishedAt),
+      ...(escalated ? [h('span', { className: 'escalation-badge' }, '⬆ ESCALATED')] : []),
     );
     const summary = h('p', { className: 'outbreak-row-summary' },
       escapeHtml(item.summary.length > 100 ? `${item.summary.slice(0, 100)}…` : item.summary),

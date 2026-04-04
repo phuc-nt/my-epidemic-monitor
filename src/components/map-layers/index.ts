@@ -10,8 +10,10 @@ import type { DiseaseOutbreakItem } from '@/types';
 import { createOutbreakMarkersLayer } from './outbreak-markers-layer';
 import { createSeverityHeatmapLayer } from './severity-heatmap-layer';
 import { createCountryChoroplethLayer } from './country-choropleth-layer';
+import { createEarlyWarningLayer } from './early-warning-layer';
+import type { EarlyWarning } from '@/services/trend-calculator';
 
-export type LayerName = 'markers' | 'heatmap' | 'choropleth';
+export type LayerName = 'markers' | 'heatmap' | 'choropleth' | 'earlyWarnings';
 
 export interface LayerCallbacks {
   onMarkerClick?: (item: DiseaseOutbreakItem) => void;
@@ -20,9 +22,10 @@ export interface LayerCallbacks {
 
 /** Visibility state for all named layers. */
 const _visible: Record<LayerName, boolean> = {
-  markers:    true,
-  heatmap:    true,
-  choropleth: true,
+  markers:       true,
+  heatmap:       true,
+  choropleth:    true,
+  earlyWarnings: true,
 };
 
 /** Last known inputs — stored so toggleLayer() can rebuild without re-passing. */
@@ -31,6 +34,7 @@ let _outbreaks: DiseaseOutbreakItem[] = [];
 let _riskScores: Map<string, number> = new Map();
 let _geoJson: unknown = null;
 let _callbacks: LayerCallbacks = {};
+let _earlyWarnings: EarlyWarning[] = [];
 
 /**
  * Rebuild and push the active layer stack to the map.
@@ -62,6 +66,12 @@ export function toggleLayer(name: LayerName): void {
   if (_shell) _applyLayers();
 }
 
+/** Set early warning data and re-render layers. */
+export function setEarlyWarnings(warnings: EarlyWarning[]): void {
+  _earlyWarnings = warnings;
+  if (_shell) _applyLayers();
+}
+
 /** Return current visibility state (copy). */
 export function getLayerVisibility(): Record<LayerName, boolean> {
   return { ..._visible };
@@ -86,6 +96,10 @@ function _applyLayers(): void {
 
   if (_visible.markers) {
     layers.push(createOutbreakMarkersLayer(_outbreaks, _callbacks.onMarkerClick));
+  }
+
+  if (_visible.earlyWarnings && _earlyWarnings.length > 0) {
+    layers.push(createEarlyWarningLayer(_earlyWarnings));
   }
 
   _shell.setLayers(layers);

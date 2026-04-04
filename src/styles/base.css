@@ -261,6 +261,12 @@ html, body {
 .outbreak-row-link:hover { text-decoration: underline; }
 .outbreak-empty { color: var(--text-muted); font-size: 12px; text-align: center; padding: 12px; }
 
+.escalation-badge {
+  display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px;
+  border-radius: 3px; background: #7c3aed; color: #fff; margin-left: 4px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+
 .alert-badge {
   display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px;
   border-radius: 3px; text-transform: uppercase; color: #fff; letter-spacing: 0.04em;
@@ -293,6 +299,13 @@ html, body {
 .stats-updated { font-size: 11px; color: var(--text-muted); margin: 0; }
 .stats-empty { color: var(--text-muted); text-align: center; font-size: 12px; }
 .stats-diseases { display: flex; flex-direction: column; gap: 6px; }
+.stats-delta { font-size: 11px; margin-left: 4px; font-weight: 600; }
+.stats-delta--up { color: var(--alert); }
+.stats-delta--down { color: #16a34a; }
+.stats-trend { font-size: 11px; margin: 0; padding: 4px 8px; border-radius: 3px; text-align: center; }
+.stats-trend--up { background: #fef2f2; color: var(--alert); }
+.stats-trend--down { background: #f0fdf4; color: #16a34a; }
+.stats-trend--stable { background: var(--surface2); color: var(--text-muted); }
 
 /* ── Country health panel ────────────────────────────────── */
 
