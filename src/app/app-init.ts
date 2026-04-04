@@ -25,6 +25,11 @@ import { fetchEpidemicStats } from '@/services/epidemic-stats-service';
 import { fetchHealthNews } from '@/services/news-feed-service';
 import { SAMPLE_OUTBREAKS, SAMPLE_STATS, SAMPLE_NEWS } from '@/services/sample-data';
 import { NewsFeedPanel } from '@/components/news-feed-panel';
+import { ChatPanel } from '@/components/chat-panel';
+import { initLLM, chat } from '@/services/llm-router';
+import { buildMessages } from '@/services/llm-context-builder';
+import { processOutbreaks, processNews, setLLMComplete } from '@/services/llm-data-pipeline';
+import { complete } from '@/services/llm-router';
 import type { DiseaseOutbreakItem } from '@/types';
 
 export async function initApp(): Promise<void> {
@@ -42,11 +47,13 @@ export async function initApp(): Promise<void> {
     const countryPanel   = new CountryHealthPanel();
     const trendPanel     = new TrendChartPanel();
     const newsPanel      = new NewsFeedPanel();
+    const chatPanel      = new ChatPanel();
 
     // 4. Mount panels into grid
     panelsGrid.appendChild(outbreaksPanel.el);
     panelsGrid.appendChild(statsPanel.el);
     panelsGrid.appendChild(newsPanel.el);
+    panelsGrid.appendChild(chatPanel.el);
     panelsGrid.appendChild(countryPanel.el);
     panelsGrid.appendChild(trendPanel.el);
 
@@ -54,6 +61,7 @@ export async function initApp(): Promise<void> {
     ctx.panels.set(outbreaksPanel.id, outbreaksPanel);
     ctx.panels.set(statsPanel.id,     statsPanel);
     ctx.panels.set(newsPanel.id,      newsPanel);
+    ctx.panels.set(chatPanel.id,      chatPanel);
     ctx.panels.set(countryPanel.id,   countryPanel);
     ctx.panels.set(trendPanel.id,     trendPanel);
 
@@ -128,6 +136,41 @@ export async function initApp(): Promise<void> {
         const profile = ctx.countryProfiles.get(code);
         if (profile) emit('country-selected', profile);
       },
+    });
+
+    // 11. Initialize LLM (non-blocking — chat works without it)
+    initLLM().then((provider) => {
+      if (provider) {
+        chatPanel.setStatus(`${provider.config.name} (${provider.config.model})`, true);
+
+        // Wire data pipeline LLM functions
+        setLLMComplete(complete);
+
+        // Run data pipeline cleanup
+        void processOutbreaks(outbreaks);
+        void processNews(news);
+
+        // Wire chat send → LLM streaming
+        chatPanel.onSend = (text) => {
+          const history = chatPanel.getHistory()
+            .filter(m => m.role !== 'assistant' || !m.content.startsWith('Xin chào'))
+            .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+          const messages = buildMessages(text, history);
+
+          chat(
+            messages,
+            (chunk) => chatPanel.appendChunk(chunk),
+            () => chatPanel.endStreaming(),
+          ).catch(() => {
+            chatPanel.appendChunk('\n[Error: LLM request failed]');
+            chatPanel.endStreaming();
+          });
+        };
+      } else {
+        chatPanel.setStatus('No LLM available — set OpenRouter API key in settings', false);
+      }
+    }).catch(() => {
+      chatPanel.setStatus('LLM init failed', false);
     });
 
     console.info('[EpidemicMonitor] App initialized');
