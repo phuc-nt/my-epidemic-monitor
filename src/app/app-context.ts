@@ -36,7 +36,8 @@ export function on(event: string, handler: EventHandler): void {
 
 /** Emit an event to all registered listeners. */
 export function emit(event: string, data?: unknown): void {
-  _handlers.get(event)?.forEach(h => h(data));
+  const set = _handlers.get(event);
+  if (set) { for (const h of set) h(data); }
 }
 
 /** Remove a previously registered listener. */

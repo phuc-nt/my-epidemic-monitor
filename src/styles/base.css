@@ -89,6 +89,12 @@ html, body {
   border-color: var(--accent);
 }
 
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
 .panel--collapsed .panel-content {
   display: none;
 }
@@ -155,12 +161,6 @@ html, body {
 .panel-resize-btn:hover {
   color: var(--text);
   border-color: var(--border);
-}
-
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
 }
 
 /* ── Panel states ─────────────────────────────────────────── */
