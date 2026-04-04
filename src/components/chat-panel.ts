@@ -67,7 +67,7 @@ export class ChatPanel extends Panel {
     // Auto-resize textarea up to 100px
     this._inputEl.addEventListener('input', () => {
       this._inputEl.style.height = 'auto';
-      this._inputEl.style.height = Math.min(this._inputEl.scrollHeight, 100) + 'px';
+      this._inputEl.style.height = `${Math.min(this._inputEl.scrollHeight, 100)}px`;
     });
 
     // Initial welcome message

@@ -144,7 +144,7 @@ export class CaseReportPanel extends Panel {
 
     if (!disease)                   { this._toast('Vui lòng chọn loại bệnh.', true); return; }
     if (!province)                  { this._toast('Vui lòng chọn tỉnh/thành phố.', true); return; }
-    if (isNaN(cases) || cases < 0) { this._toast('Số ca không hợp lệ.', true); return; }
+    if (Number.isNaN(cases) || cases < 0) { this._toast('Số ca không hợp lệ.', true); return; }
     if (!detected)                  { this._toast('Vui lòng chọn ngày phát hiện.', true); return; }
 
     const severity: CaseReport['severity'] =

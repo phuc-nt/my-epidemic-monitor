@@ -29,7 +29,6 @@ const TIME_FILTERS = [
 
 export class MapLayerControls {
   private _el: HTMLElement;
-  private _activeTimeFilter = 0; // 0 = show all
 
   constructor(mapContainer: HTMLElement) {
     this._el = this._build();
@@ -62,7 +61,6 @@ export class MapLayerControls {
       }, tf.label);
 
       btn.addEventListener('click', () => {
-        this._activeTimeFilter = tf.ms;
         // Update active state
         for (const b of timeBar.querySelectorAll('.time-filter-btn')) {
           b.classList.toggle('time-filter-btn--active', b === btn);

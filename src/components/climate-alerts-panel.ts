@@ -104,7 +104,7 @@ function buildTable(
     const row = h('tr', { className: 'climate-row' },
       h('td', { className: 'climate-td' },
         h('div', { className: 'climate-province-cell' },
-          document.createTextNode(dot + ' '),
+          document.createTextNode(`${dot} `),
           document.createTextNode(f.province),
         ),
       ),

@@ -33,7 +33,7 @@ import { buildMessages } from '@/services/llm-context-builder';
 import { processOutbreaks, processNews, setLLMComplete } from '@/services/llm-data-pipeline';
 import { complete } from '@/services/llm-router';
 import { fetchClimateForecasts } from '@/services/climate-service';
-import type { DiseaseOutbreakItem } from '@/types';
+import type { DiseaseOutbreakItem, EpidemicStats, NewsItem } from '@/types';
 
 export async function initApp(): Promise<void> {
   try {
@@ -102,8 +102,8 @@ export async function initApp(): Promise<void> {
     newsPanel.showLoading();
 
     let outbreaks: DiseaseOutbreakItem[];
-    let stats;
-    let news;
+    let stats: EpidemicStats;
+    let news: NewsItem[];
 
     try {
       [outbreaks, stats, news] = await Promise.all([
