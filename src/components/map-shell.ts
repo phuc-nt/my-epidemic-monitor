@@ -36,13 +36,15 @@ export class MapShell {
       minZoom: 5,
       maxZoom: 14,
       maxBounds: [[100.0, 7.5], [114.0, 24.0]],
-      pixelRatio: window.devicePixelRatio || 2,
       attributionControl: false,
+      dragRotate: false,
+      pitchWithRotate: false,
     });
 
     // Fallback to CartoDB if primary basemap fails to load
     this.map.on('error', (e) => {
-      if (e.error?.message?.includes('404') || e.error?.message?.includes('Failed')) {
+      const msg = String(e?.error?.message ?? '');
+      if (msg.includes('404') || msg.includes('Failed')) {
         console.warn('[MapShell] Primary basemap failed, switching to fallback');
         this.map.setStyle(BASEMAP_FALLBACK);
       }
