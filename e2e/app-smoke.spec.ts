@@ -192,4 +192,149 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     // Should show either Ollama or "No LLM" - both are valid
     expect(status!.length).toBeGreaterThan(3);
   });
+
+  // =====================================================================
+  // Climate Risk Forecast Tests
+  // =====================================================================
+
+  test('climate risk forecast panel renders with provinces', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(6000);
+    const panel = page.locator('.panel').filter({ hasText: /Climate Risk/i });
+    await expect(panel).toBeVisible({ timeout: 10000 });
+    // Should show alert banner or province table
+    const content = await panel.textContent();
+    expect(content!.length).toBeGreaterThan(20);
+  });
+
+  // =====================================================================
+  // Case Report Form Tests
+  // =====================================================================
+
+  test('case report form has disease and province dropdowns', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    const panel = page.locator('.panel').filter({ hasText: /Báo cáo ca bệnh|Case Report/i });
+    await expect(panel).toBeVisible({ timeout: 10000 });
+    // Should have select dropdowns (disease + province)
+    const selects = panel.locator('select');
+    expect(await selects.count()).toBeGreaterThanOrEqual(2);
+  });
+
+  test('case report form can be filled and submitted', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    const panel = page.locator('.panel').filter({ hasText: /Báo cáo ca bệnh|Case Report/i });
+
+    // Select disease
+    const diseaseSelect = panel.locator('select').first();
+    await diseaseSelect.selectOption({ index: 1 });
+
+    // Select province
+    const provinceSelect = panel.locator('select').nth(1);
+    await provinceSelect.selectOption({ index: 1 });
+
+    // Fill case count
+    const caseInput = panel.locator('input[type="number"]').first();
+    await caseInput.fill('5');
+
+    // Submit
+    const submitBtn = panel.locator('button[type="submit"], button').filter({ hasText: /Gửi|Submit/i });
+    if (await submitBtn.count() > 0) {
+      await submitBtn.click();
+      await page.waitForTimeout(1000);
+    }
+  });
+
+  // =====================================================================
+  // Map Time Filter Tests
+  // =====================================================================
+
+  test('time filter buttons work', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    const timeButtons = page.locator('.time-filter-btn');
+    expect(await timeButtons.count()).toBe(4); // 24h, 7d, 30d, All
+
+    // Click "24h" filter
+    await timeButtons.first().click();
+    await page.waitForTimeout(500);
+    // Active class should change
+    await expect(timeButtons.first()).toHaveClass(/time-filter-btn--active/);
+  });
+
+  // =====================================================================
+  // Map Layer Controls — Early Warnings
+  // =====================================================================
+
+  test('map has 4 layer toggles including early warnings', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    const checkboxes = page.locator('.layer-controls-checkbox');
+    expect(await checkboxes.count()).toBe(4);
+    // Labels should include Early Warnings
+    const labels = page.locator('.layer-controls-label');
+    const texts = await labels.allTextContents();
+    expect(texts.some(t => t.includes('Early Warning'))).toBe(true);
+  });
+
+  // =====================================================================
+  // IndexedDB Snapshot Persistence
+  // =====================================================================
+
+  test('IndexedDB snapshot store is created and populated', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(6000);
+    const snapshotCount = await page.evaluate(() => {
+      return new Promise<number>(resolve => {
+        const req = indexedDB.open('epidemic-monitor-snapshots', 1);
+        req.onsuccess = () => {
+          const db = req.result;
+          try {
+            const tx = db.transaction('snapshots', 'readonly');
+            const store = tx.objectStore('snapshots');
+            const countReq = store.count();
+            countReq.onsuccess = () => { resolve(countReq.result); db.close(); };
+            countReq.onerror = () => { resolve(0); db.close(); };
+          } catch { resolve(0); db.close(); }
+        };
+        req.onerror = () => resolve(0);
+      });
+    });
+    expect(snapshotCount).toBeGreaterThanOrEqual(1);
+  });
+
+  // =====================================================================
+  // Statistics Panel — Trend Banner
+  // =====================================================================
+
+  test('statistics panel shows trend banner', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(6000);
+    const panel = page.locator('.panel').filter({ hasText: /Epidemic Statistics/i });
+    await expect(panel).toBeVisible();
+    // Trend banner should exist (Ổn định for single snapshot)
+    const trend = panel.locator('.stats-trend');
+    await expect(trend).toBeVisible();
+    const text = await trend.textContent();
+    expect(text).toContain('Xu hướng');
+  });
+
+  // =====================================================================
+  // All 8 panels render check
+  // =====================================================================
+
+  test('all 8 panels render correctly', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(6000);
+    const titles = await page.locator('.panel-title').allTextContents();
+    expect(titles.length).toBe(8);
+    // Verify key panel names present
+    const joined = titles.join(' ');
+    expect(joined).toContain('Disease Outbreaks');
+    expect(joined).toContain('Climate Risk');
+    expect(joined).toContain('Epidemic Statistics');
+    expect(joined).toContain('Health News');
+    expect(joined).toContain('AI Assistant');
+  });
 });
