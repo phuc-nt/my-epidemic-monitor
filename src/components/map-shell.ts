@@ -2,7 +2,13 @@ import maplibregl from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { Layer } from '@deck.gl/core';
 
-const DARK_BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+/**
+ * High-resolution dark vector basemap options (ordered by quality):
+ * 1. OpenFreeMap — free, no key, full vector tiles with retina support
+ * 2. CartoDB dark-matter-gl — fallback if OpenFreeMap is down
+ */
+const BASEMAP_PRIMARY = 'https://tiles.openfreemap.org/styles/dark';
+const BASEMAP_FALLBACK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 /** Default center: Vietnam [lng, lat] */
 const DEFAULT_CENTER: [number, number] = [107.5, 15.5];
@@ -24,13 +30,22 @@ export class MapShell {
 
     this.map = new maplibregl.Map({
       container,
-      style: DARK_BASEMAP,
+      style: BASEMAP_PRIMARY,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       minZoom: 5,
       maxZoom: 14,
       maxBounds: [[100.0, 7.5], [114.0, 24.0]],
+      pixelRatio: window.devicePixelRatio || 2,
       attributionControl: false,
+    });
+
+    // Fallback to CartoDB if primary basemap fails to load
+    this.map.on('error', (e) => {
+      if (e.error?.message?.includes('404') || e.error?.message?.includes('Failed')) {
+        console.warn('[MapShell] Primary basemap failed, switching to fallback');
+        this.map.setStyle(BASEMAP_FALLBACK);
+      }
     });
 
     // Minimal attribution in bottom-right
