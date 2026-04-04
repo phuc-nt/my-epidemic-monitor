@@ -358,10 +358,79 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
   });
 
   // =====================================================================
-  // All 8 panels render check
+  // Breaking News Banner
   // =====================================================================
 
-  test('all 8 panels render correctly', async ({ page }) => {
+  test('breaking news banner shows and can be dismissed', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    // Banner should auto-show for ALERT-level outbreaks
+    const banner = page.locator('.breaking-news-banner');
+    await expect(banner).toBeVisible({ timeout: 5000 });
+    // Should contain alert text
+    const text = await banner.textContent();
+    expect(text!.length).toBeGreaterThan(10);
+    // Dismiss button works
+    const dismiss = page.locator('.breaking-news-banner__dismiss');
+    await dismiss.click();
+    await page.waitForTimeout(500);
+    await expect(banner).not.toHaveClass(/breaking-news-banner--visible/);
+  });
+
+  // =====================================================================
+  // Cross-Source Signals Panel
+  // =====================================================================
+
+  test('cross-source signals panel renders with detected signals', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(5000);
+    const panel = page.locator('.panel').filter({ hasText: /Cross.Source|Signal/i });
+    await expect(panel).toBeVisible({ timeout: 10000 });
+    const content = await panel.textContent();
+    // Should have at least some signal content (disease names from data)
+    expect(content!.length).toBeGreaterThan(20);
+  });
+
+  // =====================================================================
+  // Province Deep Dive Panel
+  // =====================================================================
+
+  test('province deep dive panel shows placeholder initially', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    const panel = page.locator('[data-panel-id="province-deep-dive"]');
+    await expect(panel).toBeVisible({ timeout: 10000 });
+    // Should show placeholder text (no province selected yet)
+    const content = await panel.textContent();
+    expect(content!.toLowerCase()).toContain('province');
+  });
+
+  // =====================================================================
+  // Video Tab in News Panel
+  // =====================================================================
+
+  test('news panel has video tab with health videos', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(5000);
+    // Find Video tab button
+    const videoTab = page.locator('.news-tab-btn').filter({ hasText: /Video/i });
+    await expect(videoTab).toBeVisible();
+    // Click Video tab
+    await videoTab.click();
+    await page.waitForTimeout(500);
+    // Should show video items
+    const videos = page.locator('.video-item');
+    expect(await videos.count()).toBeGreaterThanOrEqual(3);
+    // Video thumbnails should have YouTube images
+    const thumbnails = page.locator('.video-thumbnail img');
+    expect(await thumbnails.count()).toBeGreaterThanOrEqual(3);
+  });
+
+  // =====================================================================
+  // All 10 panels render check
+  // =====================================================================
+
+  test('all 10 panels render correctly', async ({ page }) => {
     await page.goto('/');
     await page.waitForTimeout(6000);
     const titles = await page.locator('.panel-title').allTextContents();
@@ -373,5 +442,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     expect(joined).toContain('Epidemic Statistics');
     expect(joined).toContain('Health News');
     expect(joined).toContain('AI Assistant');
+    expect(joined).toContain('SIGNALS');
+    expect(joined).toContain('DEEP DIVE');
   });
 });
