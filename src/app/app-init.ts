@@ -33,6 +33,8 @@ import { buildMessages } from '@/services/llm-context-builder';
 import { processOutbreaks, processNews, setLLMComplete } from '@/services/llm-data-pipeline';
 import { complete } from '@/services/llm-router';
 import { fetchClimateForecasts } from '@/services/climate-service';
+import { initSnapshotDB, saveSnapshot, getRecentSnapshots, pruneOldSnapshots } from '@/services/snapshot-store';
+import { computeStatsDelta, computeAllTrends } from '@/services/trend-calculator';
 import type { DiseaseOutbreakItem, EpidemicStats, NewsItem } from '@/types';
 
 export async function initApp(): Promise<void> {
@@ -126,8 +128,28 @@ export async function initApp(): Promise<void> {
     ctx.news = news;
 
     outbreaksPanel.updateData(outbreaks);
-    statsPanel.updateData(stats);
     newsPanel.updateData(news);
+
+    // Snapshot store: save current data + compute trends
+    try {
+      await initSnapshotDB();
+      await saveSnapshot(outbreaks);
+      void pruneOldSnapshots(30);
+
+      const snapshots = await getRecentSnapshots(30);
+      const delta = computeStatsDelta(snapshots);
+      statsPanel.updateDataWithDelta(stats, delta);
+
+      // Feed trend chart with top disease
+      const trends = computeAllTrends(snapshots);
+      if (trends.length > 0) {
+        const top = trends[0];
+        trendPanel.setData(top.disease, top.points.map(p => p.value));
+      }
+    } catch {
+      // IndexedDB unavailable — show stats without delta
+      statsPanel.updateData(stats);
+    }
 
     // Build per-country risk score map for choropleth
     const riskWeight: Record<string, number> = { alert: 1, warning: 0.6, watch: 0.3 };

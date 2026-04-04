@@ -5,11 +5,11 @@
  */
 
 import type { DiseaseOutbreakItem, NewsItem } from '@/types';
+import type { ChatMessage } from '@/types/llm-types';
+import { findDuplicatesByTitle } from '@/services/news-dedup-rules';
 
 // Cache processed results to avoid re-calling LLM for same input
 const _processedCache = new Map<string, unknown>();
-
-import type { ChatMessage } from '@/types/llm-types';
 
 /** LLM complete function — set by app-init when LLM is available */
 let _completeFn: ((msgs: ChatMessage[]) => Promise<string>) | null = null;
@@ -47,8 +47,8 @@ export async function processNews(news: NewsItem[]): Promise<void> {
     if (n.summary) n.summary = cleanText(n.summary);
   }
 
-  // LLM dedup — find duplicate stories across sources
-  if (_completeFn && news.length > 5) {
+  // Dedup — always runs rule-based tier; LLM tier only when available
+  if (news.length > 2) {
     await markDuplicateNews(news);
   }
 }
@@ -203,33 +203,54 @@ Return ONLY valid JSON array.`;
 }
 
 async function markDuplicateNews(news: NewsItem[]): Promise<void> {
-  if (!_completeFn || news.length < 3) return;
+  const titles = news.map(n => n.title);
 
-  // Only check first 10 titles for dupes
-  const titles = news.slice(0, 10).map((n, i) => `[${i}] ${n.title}`).join('\n');
-  const prompt = `Which of these headlines describe the SAME event? Return pairs as JSON: [[index1, index2], ...]
-If no duplicates, return [].
+  // Tier 1: Rule-based (always runs, fast, no API call)
+  // High confidence threshold — mark these immediately as duplicates
+  const rulePairs = findDuplicatesByTitle(titles, 0.5);
+  for (const [, j] of rulePairs) {
+    if (news[j]) news[j].category = 'duplicate';
+  }
 
-${titles}
+  // Tier 2: LLM for ambiguous pairs (0.25–0.5 similarity range)
+  // Only sends pairs that rule-based didn't already resolve
+  if (!_completeFn) return;
 
-Return ONLY valid JSON array.`;
+  const maybePairs = findDuplicatesByTitle(titles, 0.25).filter(
+    ([a, b]) => news[a]?.category !== 'duplicate' && news[b]?.category !== 'duplicate',
+  );
+
+  if (maybePairs.length === 0) return;
+
+  const ambiguousText = maybePairs
+    .map(([a, b]) => `A: ${news[a].title}\nB: ${news[b].title}`)
+    .join('\n---\n');
+
+  const prompt = `For each pair below, answer YES if both headlines describe the SAME event, NO if different.
+Return a JSON array of booleans, one per pair.
+
+${ambiguousText}
+
+Return ONLY a JSON array like [true, false, ...].`;
 
   try {
     const result = await _completeFn([
-      { role: 'system' as const, content: 'You detect duplicate news. Return only valid JSON.' },
+      { role: 'system' as const, content: 'You detect duplicate news headlines. Return only valid JSON array of booleans.' },
       { role: 'user' as const, content: prompt },
     ]);
 
-    const pairs = JSON.parse(result.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, ''));
-    if (Array.isArray(pairs)) {
-      for (const [, j] of pairs) {
-        if (typeof j === 'number' && news[j]) {
-          // Mark duplicate by prepending [DUP] — consumer can filter
-          news[j].category = 'duplicate';
+    const json = result.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+    const verdicts = JSON.parse(json);
+
+    if (Array.isArray(verdicts)) {
+      for (let k = 0; k < maybePairs.length; k++) {
+        if (verdicts[k] === true) {
+          const [, j] = maybePairs[k];
+          if (news[j]) news[j].category = 'duplicate';
         }
       }
     }
   } catch {
-    // Dedup failed — show all items, no harm
+    // LLM unavailable or parse error — rule-based results are sufficient
   }
 }
