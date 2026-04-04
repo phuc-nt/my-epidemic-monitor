@@ -104,26 +104,26 @@ Rules:
 | **Bắt buộc?** | Luôn chạy |
 
 ### Vấn đề
-WHO RSS trả về tên bệnh không nhất quán: "Dengue Fever", "dengue", "DENGUE", "Avian Influenza A(H5N1)". Hiển thị lộn xộn, không gộp được thống kê.
+VN RSS + WHO feeds trả về tên bệnh inconsistent: "Dengue Fever", "dengue", "SXH", "Avian Influenza A(H5N1)". Hiển thị lộn xộn, không gộp thống kê.
 
 ### Giải pháp
-Map 14 alias → tên chuẩn song ngữ Việt-Anh:
+Map 67 aliases (EN+VN) → tên chuẩn song ngữ:
 
-| Alias (từ nguồn dữ liệu) | Chuẩn hóa thành |
-|---------------------------|-----------------|
-| dengue, dengue fever | Sốt xuất huyết (Dengue) |
-| covid, covid-19, coronavirus | COVID-19 |
-| hand, foot and mouth, hfmd | Tay chân miệng (HFMD) |
-| influenza, influenza a | Cúm A (Influenza A) |
-| measles | Sởi (Measles) |
-| cholera | Tả (Cholera) |
-| mpox | Đậu mùa khỉ (Mpox) |
-| avian influenza | Cúm gia cầm (Avian Influenza) |
-| rabies | Dại (Rabies) |
-| typhoid | Thương hàn (Typhoid) |
-| malaria | Sốt rét (Malaria) |
+| Alias Examples | Standard Name |
+|---|---|
+| dengue, dengue fever, sốt xuất huyết, sxh | Sốt xuất huyết (Dengue) |
+| covid, covid-19, coronavirus, covid-19, c19 | COVID-19 |
+| hand foot mouth, hfmd, tay chân miệng, tcm | Tay chân miệng (HFMD) |
+| influenza, flu, cúm, cúm a, avian flu | Cúm A (Influenza A) |
+| measles, sởi, seo | Sởi (Measles) |
+| cholera, tả | Tả (Cholera) |
+| mpox, monkeypox, đậu mùa khỉ | Đậu mùa khỉ (Mpox) |
+| polio, bại liệt | Bại liệt (Polio) |
+| tb, lao, tuberculosis, phổi | Lao (Tuberculosis) |
+| typhoid, thương hàn | Thương hàn (Typhoid) |
+| hepatitis, viêm gan | Viêm gan (Hepatitis) |
 
-**Tại sao rule-based?** Danh sách bệnh hữu hạn (~15), pattern match đơn giản, nhanh (0ms), không cần LLM call. YAGNI.
+**Tại sao rule-based?** Danh sách bệnh hữu hạn (~15 chính), pattern match đơn giản, nhanh (0ms), không cần LLM. YAGNI. Cập nhật bằng regex lookup table.
 
 ---
 
@@ -131,67 +131,78 @@ Map 14 alias → tên chuẩn song ngữ Việt-Anh:
 
 | | |
 |---|---|
-| **File** | `llm-data-pipeline.ts` → `enrichOutbreaksBatch()` |
-| **Model** | `complete()` từ active provider (non-streaming) |
-| **Trigger** | Background, sau data fetch, chỉ khi LLM available |
-| **Bắt buộc?** | Không — nếu LLM unavailable, outbreaks vẫn hiển thị (thiếu case counts) |
+| **File** | `llm-entity-extraction-service.ts` → `src/services/article-content-fetcher.ts` |
+| **Model** | `complete()` from active provider (non-streaming) |
+| **Trigger** | Background, after article crawl via crawl4ai + LLM |
+| **Bắt buộc?** | Không — outbreaks vẫn render (cases/deaths/wards missing) |
 
 ### Vấn đề
-Outbreak summaries chứa case counts dạng text: "Số ca sốt xuất huyết tăng mạnh tại TP.HCM, đặc biệt ở các quận 12, Bình Tân, Gò Vấp." — cần extract thành structured data.
+Crawl4ai fetches full article text. Extract structured fields:
+- **cases**: Case count from article body
+- **deaths**: Fatality count
+- **wards**: Ward/district names (from vietnam-wards-database.ts)
+- **dates**: Outbreak start/end dates
 
 ### Giải pháp
-Batch 5 outbreak summaries → LLM extract JSON:
+Batch article texts → LLM extract JSON:
 
-**Prompt:**
+**Prompt template** (in `llm-entity-extraction-service.ts`):
 ```
-Extract case counts from these outbreak summaries. Return JSON array.
-Each entry: { "id": "...", "cases": number|null, "deaths": number|null }
+Extract epidemic data from these articles. Return JSON array.
+For each article, extract: cases, deaths, affected_wards, date_range.
 
-[0] id="vn-deng-hcm" — Số ca sốt xuất huyết tăng mạnh tại TP.HCM...
-[1] id="vn-deng-hn" — Ca mắc sốt xuất huyết gia tăng tại Hà Nội...
+Article 1: {article_text}
+Article 2: {article_text}
+...
 
-Return ONLY valid JSON array, no explanation.
+Return ONLY valid JSON array:
+[
+  {"id": "...", "cases": int|null, "deaths": int|null, 
+   "affected_wards": ["Ward A", "Ward B"], "date_start": "2026-04-01"},
+  ...
+]
 ```
 
-**LLM Response:**
-```json
-[{"id": "vn-deng-hcm", "cases": 4520, "deaths": 3}, ...]
-```
+**Status**: Background extraction, cases/deaths/districts still 0% because:
+1. Many crawled articles are health guides, not outbreak reports
+2. LLM extraction needs long processing time per batch
+3. Matching ward names to coordinates requires cross-reference
 
-**Cache:** Mỗi outbreak ID chỉ extract 1 lần → cache kết quả, tránh gọi LLM lặp.
+**Cache:** Per-outbreak-ID, avoid duplicate extractions.
 
 ---
 
-## 4. News Deduplication (LLM-powered)
+## 4. News Deduplication (Multi-tier)
 
 | | |
 |---|---|
-| **File** | `llm-data-pipeline.ts` → `markDuplicateNews()` |
-| **Model** | `complete()` từ active provider (non-streaming) |
-| **Trigger** | Background, sau news fetch, chỉ khi LLM available + >5 news items |
-| **Bắt buộc?** | Không — nếu LLM unavailable, hiện tất cả tin (chấp nhận trùng) |
+| **File** | `llm-data-pipeline.ts` → Tier 1: `news-dedup-rules.ts`, Tier 2: LLM |
+| **Model** | Tier 1: Jaccard, Tier 2: `complete()` from provider |
+| **Trigger** | After news fetch, always Tier 1 + Tier 2 if ambiguous |
+| **Bắt buộc?** | Tier 1 luôn; Tier 2 tùy LLM available |
 
 ### Vấn đề
-7 RSS feeds → cùng 1 sự kiện xuất hiện nhiều lần. VD: WHO và MOH-VN cùng đưa tin "SXH bùng phát ở miền Nam" → hiển thị trùng.
+6 VN RSS feeds (VnExpress, Tuổi Trẻ, Thanh Niên, VietnamNet, WHO, CDC-EID) → duplicate coverage. Same event reported by multiple sources.
 
 ### Giải pháp
-LLM compare 10 headlines đầu tiên → tìm cặp trùng:
 
-**Prompt:**
+**Tier 1: Jaccard Similarity (deterministic)**
+- Compare headlines: intersection/union of words
+- Threshold: 0.4 → mark as potential duplicate
+- Fast, no LLM needed
+
+**Tier 2: LLM (for ambiguous pairs)**
+- If Tier 1 score 0.3-0.5 → send to LLM for semantic comparison
+- Prompt: "Do these 2 headlines describe the SAME event?"
+- Response: confidence score
+
+**Output:**
 ```
-Which of these headlines describe the SAME event? Return pairs as JSON.
-
-[0] Bộ Y tế cảnh báo dịch SXH bùng phát mạnh tại miền Nam
-[1] WHO supports Vietnam dengue response in southern provinces
-[2] TP.HCM triển khai chiến dịch diệt lăng quăng...
-...
-
-Return ONLY valid JSON array.
+news[i].isDuplicate = true  // marked by Tier 1 or Tier 2
+news[i].masterItem = j      // points to canonical item
 ```
 
-**LLM Response:** `[[0, 1]]` — headline 0 và 1 cùng sự kiện.
-
-→ Mark `news[1].category = 'duplicate'` → consumer có thể filter.
+UI filters or highlights duplicates. Allows user to "merge" or "hide" variants of same story.
 
 ---
 
@@ -243,15 +254,45 @@ Chat dùng streaming qua Server-Sent Events:
 
 ---
 
-## Tổng kết
+## Advanced Features
 
-| # | Tính năng | Model | Khi nào chạy | Bắt buộc? | Fallback |
-|---|-----------|-------|-------------|-----------|----------|
-| 1 | Chat hỏi đáp | Active provider (streaming) | User gửi message | Không | Panel vẫn render |
-| 2 | Disease normalization | Rule-based (67 alias EN+VN) | Mỗi data fetch | Luôn | N/A (không cần LLM) |
-| 3 | Entity extraction | Active provider (batch ALL) | Background sau fetch | Không | Skip, data vẫn hiện |
-| 4 | News dedup Tier 1 | Rule-based (Jaccard similarity) | Mỗi news fetch | Luôn | N/A (không cần LLM) |
-| 5 | News dedup Tier 2 | Active provider (ambiguous pairs) | Sau Tier 1 | Không | Tier 1 đủ |
-| 6 | Context building | N/A (string template) | Trước mỗi chat | Tự động | N/A |
+### YouTube Transcript Extraction
+- **File**: `src/services/youtube-transcript-service.ts`
+- **Use**: Extract captions from epidemic-related YouTube videos
+- **Provider**: YouTube Data API v3 (requires API key) or yt-dlp fallback
+- **Status**: Configured, not actively used in current UI
 
-**Thiết kế nguyên tắc**: LLM enhance, không block. App hoạt động 100% khi offline — LLM chỉ thêm intelligence layer.
+### Article Content Fetcher
+- **File**: `src/services/article-content-fetcher.ts`
+- **Method**: crawl4ai (Python, full JS-render) OR fallback simple fetch
+- **Python location**: `/tmp/crawl4ai-env/` (venv with crawl4ai)
+- **Used for**: Extract full text from news article URLs for LLM entity extraction
+
+### Cross-Source Signal Detection
+- **File**: `src/services/cross-source-signal-service.ts`
+- **Logic**: Match outbreak titles + locations across WHO-DON + VN RSS
+- **Output**: Panel showing multi-source alignment (confidence scoring)
+- **Example**: WHO reports "Dengue — Vietnam"; VietnamNet also "SXH — TPHCM" → HIGH confidence signal
+
+---
+
+## Summary
+
+| # | Feature | Model | When | Mandatory? | Fallback |
+|---|---------|-------|------|------------|----------|
+| 1 | Chat Q&A | Active provider (streaming) | User sends message | No | Panel shows "No LLM" |
+| 2 | Disease normalization | Rule-based (67 aliases) | Per data fetch | Always | N/A (no LLM needed) |
+| 3 | Entity extraction | Active provider (batch) | Background after crawl | No | Skip, data missing |
+| 4 | News dedup Tier 1 | Rule-based (Jaccard) | Per news fetch | Always | N/A |
+| 5 | News dedup Tier 2 | Active provider | Ambiguous pairs only | No | Tier 1 sufficient |
+| 6 | Cross-source signals | Rule-based (location matching) | Per data fetch | Always | Shows signals found |
+| 7 | Article crawl | crawl4ai or fallback fetch | Background | No | Missing full text |
+| 8 | Context building | String template | Before chat | Auto | N/A |
+
+**Design principle**: LLM enhances, doesn't block. App 100% functional offline — LLM adds intelligence layer only.
+
+**Real status (April 2026):**
+- Cases, deaths, districts extraction: **0% extracted yet** (background processing)
+- Chat quality: **High** with minimax m2.7, **Low** with Ollama gemma3:4b
+- News dedup: **Tier 1 working** (Jaccard), Tier 2 enabled when ambiguous
+- Cross-source signals: **Detecting multi-source outbreaks** successfully

@@ -9,8 +9,44 @@ import { getCached, setCached } from '../../_cache';
 export const config = { runtime: 'edge' };
 
 const CACHE_KEY = 'outbreaks';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const WHO_DON_RSS = 'https://www.who.int/feeds/entity/don/en/rss.xml';
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+/** RSS sources for outbreak data — WHO DON + Vietnamese health news */
+const OUTBREAK_SOURCES = [
+  { name: 'WHO-DON', url: 'https://www.who.int/feeds/entity/don/en/rss.xml' },
+  { name: 'VnExpress', url: 'https://vnexpress.net/rss/suc-khoe.rss' },
+  { name: 'VietnamNet', url: 'https://vietnamnet.vn/suc-khoe.rss' },
+  { name: 'Tuổi Trẻ', url: 'https://tuoitre.vn/rss/suc-khoe.rss' },
+  { name: 'Thanh Niên', url: 'https://thanhnien.vn/rss/suc-khoe.rss' },
+  { name: 'Dân Trí', url: 'https://dantri.com.vn/rss/suc-khoe.rss' },
+];
+
+/**
+ * Vietnamese disease keywords → normalized disease name + alert level hint.
+ * Used to extract outbreak items from general health news articles.
+ */
+const VN_DISEASE_KEYWORDS: { pattern: RegExp; disease: string; alert: 'alert' | 'warning' | 'watch' }[] = [
+  { pattern: /sốt xuất huyết|dengue|sxh/i, disease: 'Sốt xuất huyết (Dengue)', alert: 'warning' },
+  { pattern: /tay chân miệng|hand.?foot|hfmd/i, disease: 'Tay chân miệng (HFMD)', alert: 'warning' },
+  { pattern: /covid|sars.?cov|corona/i, disease: 'COVID-19', alert: 'watch' },
+  { pattern: /cúm\s*a|influenza\s*a|h[0-9]n[0-9]/i, disease: 'Cúm A (Influenza A)', alert: 'watch' },
+  { pattern: /cúm gia cầm|avian|bird flu|h5n1/i, disease: 'Cúm gia cầm (Avian Influenza)', alert: 'alert' },
+  { pattern: /sởi|measles/i, disease: 'Sởi (Measles)', alert: 'warning' },
+  { pattern: /bạch hầu|diphtheria/i, disease: 'Bạch hầu (Diphtheria)', alert: 'alert' },
+  { pattern: /tả|cholera/i, disease: 'Tả (Cholera)', alert: 'alert' },
+  { pattern: /ho gà|pertussis|whooping/i, disease: 'Ho gà (Pertussis)', alert: 'warning' },
+  { pattern: /dại|rabies/i, disease: 'Dại (Rabies)', alert: 'warning' },
+  { pattern: /viêm não|encephalitis|japanese encephalitis/i, disease: 'Viêm não Nhật Bản (JE)', alert: 'warning' },
+  { pattern: /thương hàn|typhoid/i, disease: 'Thương hàn (Typhoid)', alert: 'warning' },
+  { pattern: /ebola/i, disease: 'Ebola', alert: 'alert' },
+  { pattern: /marburg/i, disease: 'Marburg', alert: 'alert' },
+  { pattern: /mpox|đậu mùa khỉ/i, disease: 'Mpox', alert: 'warning' },
+  { pattern: /lao|tuberculosis|tb\b/i, disease: 'Lao (Tuberculosis)', alert: 'watch' },
+  { pattern: /sốt rét|malaria/i, disease: 'Sốt rét (Malaria)', alert: 'warning' },
+  { pattern: /hiv|aids/i, disease: 'HIV/AIDS', alert: 'watch' },
+  { pattern: /viêm gan|hepatitis/i, disease: 'Viêm gan (Hepatitis)', alert: 'watch' },
+  { pattern: /dịch hạch|plague/i, disease: 'Dịch hạch (Plague)', alert: 'alert' },
+];
 
 // ISO alpha-2 lookup by common English country name
 const COUNTRY_CODES: Record<string, string> = {
@@ -165,57 +201,200 @@ function lookupCountryCode(name: string): string {
   return '';
 }
 
-/** Search text for a Vietnam province name, return its centroid. */
-function findVnProvince(text: string): [number, number] | null {
+/** Search text for a Vietnam province name, return name + centroid. */
+function findVnProvince(text: string): { name: string; coords: [number, number] } | null {
   const lower = text.toLowerCase();
   for (const [name, coords] of Object.entries(VN_PROVINCES)) {
-    if (lower.includes(name.toLowerCase())) return coords;
+    if (lower.includes(name.toLowerCase())) return { name, coords };
   }
   return null;
 }
 
+/** Match disease from article text using VN_DISEASE_KEYWORDS. */
+function matchDisease(text: string): { disease: string; alert: 'alert' | 'warning' | 'watch' } | null {
+  for (const kw of VN_DISEASE_KEYWORDS) {
+    if (kw.pattern.test(text)) return { disease: kw.disease, alert: kw.alert };
+  }
+  return null;
+}
+
+/** Upgrade alert level based on keyword cues in text. */
+function refineAlertLevel(text: string, base: 'alert' | 'warning' | 'watch'): 'alert' | 'warning' | 'watch' {
+  const lower = text.toLowerCase();
+  if (/bùng phát|outbreak|emergency|tử vong|chết|deaths?|khẩn cấp/.test(lower)) return 'alert';
+  if (/tăng mạnh|tăng cao|lan rộng|cảnh báo|warning|surge|increase/.test(lower)) return 'warning';
+  return base;
+}
+
+// ---------------------------------------------------------------------------
+// Parse WHO DON items (structured: "Disease - Country" title format)
+// ---------------------------------------------------------------------------
+interface OutbreakResult {
+  id: string; disease: string; country: string; countryCode: string;
+  alertLevel: 'alert' | 'warning' | 'watch';
+  title: string; summary: string; url: string; publishedAt: number;
+  lat?: number; lng?: number; province?: string; source: string;
+}
+
+function parseWhoDonItems(rssItems: RssItem[]): OutbreakResult[] {
+  return rssItems.map((item) => {
+    const country = deriveCountry(item.title);
+    const countryCode = lookupCountryCode(country);
+    const centroid = COUNTRY_CENTROIDS[countryCode];
+    let lat = centroid?.[0];
+    let lng = centroid?.[1];
+    let province: string | undefined;
+    if (countryCode === 'VN' || country.toLowerCase().includes('viet')) {
+      const vnMatch = findVnProvince(item.title + ' ' + item.description);
+      if (vnMatch) { lat = vnMatch.coords[0]; lng = vnMatch.coords[1]; province = vnMatch.name; }
+    }
+    return {
+      id: hashString(item.link || item.title),
+      disease: deriveDisease(item.title),
+      country,
+      countryCode: countryCode || (country.toLowerCase().includes('viet') ? 'VN' : ''),
+      alertLevel: deriveAlertLevel(item.title),
+      title: item.title,
+      summary: item.description.replace(/<[^>]+>/g, '').slice(0, 300),
+      url: item.link,
+      publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
+      lat, lng, province,
+      source: 'WHO-DON',
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Parse Vietnamese news RSS → outbreak items (filter by disease keywords)
+// ---------------------------------------------------------------------------
+function parseVnNewsToOutbreaks(rssItems: RssItem[], sourceName: string): OutbreakResult[] {
+  const results: OutbreakResult[] = [];
+  for (const item of rssItems) {
+    const text = item.title + ' ' + item.description;
+    const match = matchDisease(text);
+    if (!match) continue; // Skip non-disease articles
+
+    const vnProvince = findVnProvince(text);
+    const centroid = vnProvince?.coords ?? COUNTRY_CENTROIDS['VN'];
+    const alertLevel = refineAlertLevel(text, match.alert);
+
+    results.push({
+      id: hashString(`${sourceName}:${item.link || item.title}`),
+      disease: match.disease,
+      country: 'Vietnam',
+      countryCode: 'VN',
+      alertLevel,
+      title: item.title,
+      summary: item.description.replace(/<[^>]+>/g, '').slice(0, 300),
+      url: item.link,
+      publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
+      lat: centroid?.[0],
+      lng: centroid?.[1],
+      province: vnProvince?.name,
+      source: sourceName,
+    });
+  }
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// WHO DON REST API (replaces broken RSS feed)
+// ---------------------------------------------------------------------------
+async function fetchWhoDonApi(): Promise<OutbreakResult[]> {
+  const url = 'https://www.who.int/api/news/diseaseoutbreaknews?$orderby=PublicationDate%20desc&$top=30';
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json', 'User-Agent': 'EpidemicMonitor/1.0' },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!res.ok) throw new Error(`WHO DON API ${res.status}`);
+  const data: { value: Record<string, unknown>[] } = await res.json();
+  return (data.value || []).map(item => {
+    const title = typeof item.Title === 'object' ? (item.Title as Record<string, string>)?.Value ?? '' : String(item.Title ?? '');
+    const summary = typeof item.Summary === 'object' ? (item.Summary as Record<string, string>)?.Value ?? '' : String(item.Summary ?? '');
+    const urlPath = typeof item.ItemDefaultUrl === 'object' ? (item.ItemDefaultUrl as Record<string, string>)?.Value ?? '' : String(item.ItemDefaultUrl ?? '');
+    const fullUrl = urlPath.startsWith('/') ? `https://www.who.int${urlPath}` : urlPath;
+    const pubDate = String(item.PublicationDate ?? '');
+
+    const country = deriveCountry(title);
+    const countryCode = lookupCountryCode(country);
+    const centroid = COUNTRY_CENTROIDS[countryCode];
+
+    return {
+      id: hashString(`WHO-DON:${fullUrl || title}`),
+      disease: deriveDisease(title),
+      country: country || 'Global',
+      countryCode,
+      alertLevel: deriveAlertLevel(title),
+      title,
+      summary: summary.replace(/<[^>]+>/g, '').slice(0, 300),
+      url: fullUrl,
+      publishedAt: pubDate ? new Date(pubDate).getTime() : Date.now(),
+      lat: centroid?.[0],
+      lng: centroid?.[1],
+      source: 'WHO-DON',
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Main handler: fetch all sources in parallel, merge, deduplicate
+// ---------------------------------------------------------------------------
+async function fetchRssSource(source: { name: string; url: string }): Promise<OutbreakResult[]> {
+  const res = await fetch(source.url, {
+    headers: { 'User-Agent': 'EpidemicMonitor/1.0', Accept: 'application/rss+xml, application/xml, text/xml' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`${source.name} RSS ${res.status}`);
+  const xml = await res.text();
+  const rssItems = parseRssItems(xml);
+  return parseVnNewsToOutbreaks(rssItems, source.name);
+}
+
+/** Vietnamese news RSS sources (WHO-DON handled separately via REST API) */
+const VN_RSS_SOURCES = OUTBREAK_SOURCES.filter(s => s.name !== 'WHO-DON');
+
 export default async function GET(_request: Request): Promise<Response> {
-  const cached = getCached<{ outbreaks: unknown[]; fetchedAt: number }>(CACHE_KEY);
-  if (cached) return jsonResponse(cached, 200, 300);
+  const cached = getCached<{ outbreaks: unknown[]; fetchedAt: number; sources: string[] }>(CACHE_KEY);
+  if (cached) return jsonResponse(cached, 200, 600);
 
   try {
-    const res = await fetch(WHO_DON_RSS, {
-      headers: { 'User-Agent': 'EpidemicMonitor/1.0' },
-    });
-    if (!res.ok) throw new Error(`WHO RSS ${res.status}`);
+    // Fetch WHO DON REST API + VN news RSS feeds in parallel
+    const [whoDonResult, ...rssResults] = await Promise.allSettled([
+      fetchWhoDonApi(),
+      ...VN_RSS_SOURCES.map(fetchRssSource),
+    ]);
 
-    const xml = await res.text();
-    const rssItems = parseRssItems(xml);
+    const allOutbreaks: OutbreakResult[] = [];
+    const successSources: string[] = [];
 
-    const outbreaks = rssItems.map((item) => {
-      const country = deriveCountry(item.title);
-      const countryCode = lookupCountryCode(country);
-      const centroid = COUNTRY_CENTROIDS[countryCode];
-      // Try Vietnam sub-national geocoding for more precise placement
-      let lat = centroid?.[0];
-      let lng = centroid?.[1];
-      if (countryCode === 'VN' || country.toLowerCase().includes('viet')) {
-        const vnMatch = findVnProvince(item.title + ' ' + item.description);
-        if (vnMatch) { lat = vnMatch[0]; lng = vnMatch[1]; }
+    // WHO DON API results
+    if (whoDonResult.status === 'fulfilled') {
+      allOutbreaks.push(...whoDonResult.value);
+      successSources.push('WHO-DON');
+    }
+
+    // VN RSS results
+    for (let i = 0; i < rssResults.length; i++) {
+      const result = rssResults[i];
+      if (result.status === 'fulfilled') {
+        allOutbreaks.push(...result.value);
+        successSources.push(VN_RSS_SOURCES[i].name);
       }
-      return {
-        id: hashString(item.link || item.title),
-        disease: deriveDisease(item.title),
-        country,
-        countryCode: countryCode || (country.toLowerCase().includes('viet') ? 'VN' : ''),
-        alertLevel: deriveAlertLevel(item.title),
-        title: item.title,
-        summary: item.description.replace(/<[^>]+>/g, '').slice(0, 300),
-        url: item.link,
-        publishedAt: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
-        lat,
-        lng,
-      };
-    });
+    }
 
-    const payload = { outbreaks, fetchedAt: Date.now() };
+    // Deduplicate by id, sort by date desc
+    const seen = new Set<string>();
+    const outbreaks = allOutbreaks
+      .filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      })
+      .sort((a, b) => b.publishedAt - a.publishedAt);
+
+    const payload = { outbreaks, fetchedAt: Date.now(), sources: successSources };
     setCached(CACHE_KEY, payload, CACHE_TTL);
-    return jsonResponse(payload, 200, 300);
+    return jsonResponse(payload, 200, 600);
   } catch (err) {
     return errorResponse(err instanceof Error ? err.message : 'Failed to fetch outbreaks');
   }

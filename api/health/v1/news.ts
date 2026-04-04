@@ -12,17 +12,22 @@ const CACHE_KEY = 'news';
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 const RSS_SOURCES: { name: string; url: string }[] = [
+  // Vietnamese health news (primary — real articles with real URLs)
+  { name: 'VnExpress', url: 'https://vnexpress.net/rss/suc-khoe.rss' },
+  { name: 'VietnamNet', url: 'https://vietnamnet.vn/suc-khoe.rss' },
+  { name: 'Tuổi Trẻ', url: 'https://tuoitre.vn/rss/suc-khoe.rss' },
+  { name: 'Thanh Niên', url: 'https://thanhnien.vn/rss/suc-khoe.rss' },
+  { name: 'Dân Trí', url: 'https://dantri.com.vn/rss/suc-khoe.rss' },
+  // International sources
   { name: 'WHO', url: 'https://www.who.int/rss-feeds/news-english.xml' },
-  { name: 'CDC', url: 'https://tools.cdc.gov/api/v2/resources/media/rss' },
-  { name: 'ProMED', url: 'https://promedmail.org/feed/' },
+  { name: 'CDC-EID', url: 'https://wwwnc.cdc.gov/eid/rss/upcoming.xml' },
   { name: 'ECDC', url: 'https://www.ecdc.europa.eu/en/rss.xml' },
   {
     name: 'ReliefWeb',
     url: 'https://api.reliefweb.int/v1/reports?appname=epidemic-monitor&filter[field]=theme.name&filter[value]=Health&format=rss',
   },
-  // Vietnam-specific health news sources
+  // Vietnam-specific international sources
   { name: 'WHO-VN', url: 'https://www.who.int/vietnam/rss-feeds/news/rss.xml' },
-  { name: 'MOH-VN', url: 'https://moh.gov.vn/rss/-/home' },
 ];
 
 function extractTag(xml: string, tag: string): string {
@@ -32,12 +37,10 @@ function extractTag(xml: string, tag: string): string {
 }
 
 function extractLink(block: string): string {
-  // Try <link> tag first, fallback to <guid>
-  const linkRe = /<link>([^<]+)<\/link>/;
-  const guidRe = /<guid[^>]*>([^<]+)<\/guid>/;
-  const lm = block.match(linkRe);
-  if (lm) return lm[1].trim();
-  const gm = block.match(guidRe);
+  // Handle both plain text and CDATA-wrapped links
+  const lm = block.match(/<link>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/link>/s);
+  if (lm && lm[1].trim()) return lm[1].trim();
+  const gm = block.match(/<guid[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/guid>/s);
   return gm ? gm[1].trim() : '';
 }
 

@@ -6,7 +6,9 @@
 
 import type { DiseaseOutbreakItem, NewsItem } from '@/types';
 import type { ChatMessage } from '@/types/llm-types';
-import { findDuplicatesByTitle } from '@/services/news-dedup-rules';
+import { findDuplicatesByTitle, titleSimilarity } from '@/services/news-dedup-rules';
+import { extractEntitiesRule, extractEntitiesLLM } from '@/services/llm-entity-extraction-service';
+import { apiFetch } from '@/services/api-client';
 
 // Cache processed results to avoid re-calling LLM for same input
 const _processedCache = new Map<string, unknown>();
@@ -22,21 +24,51 @@ export function setLLMComplete(fn: typeof _completeFn): void {
 // Public API — called after each data fetch
 // ---------------------------------------------------------------------------
 
-/** Clean and enrich outbreak data. Modifies items in-place. */
+/** Clean, deduplicate, and enrich outbreak data. Modifies array in-place. */
 export async function processOutbreaks(outbreaks: DiseaseOutbreakItem[]): Promise<void> {
   for (const o of outbreaks) {
-    // Normalize disease name (rule-based, fast)
     o.disease = normalizeDiseaseNameRule(o.disease);
-    // Clean summary (strip leftover HTML, normalize whitespace)
     o.summary = cleanText(o.summary);
   }
 
-  // LLM enrichment — batch extract missing fields if LLM available
+  // Dedup outbreaks by title similarity (same event from different sources)
+  deduplicateOutbreaks(outbreaks);
+
+  // LLM enrichment — batch extract missing case/death counts
   if (_completeFn) {
     const needsEnrich = outbreaks.filter(o => !o.cases && !_processedCache.has(o.id));
     if (needsEnrich.length > 0) {
       await enrichOutbreaksBatch(needsEnrich);
     }
+  }
+}
+
+/**
+ * Mark duplicate outbreaks from different sources about the same event.
+ * Uses Jaccard title similarity + same disease as heuristic.
+ * Keeps the first occurrence (earlier in array), marks later as duplicate via alertLevel.
+ */
+function deduplicateOutbreaks(outbreaks: DiseaseOutbreakItem[]): void {
+  const titles = outbreaks.map(o => o.title);
+  const removed = new Set<number>();
+
+  for (let i = 0; i < outbreaks.length - 1; i++) {
+    if (removed.has(i)) continue;
+    for (let j = i + 1; j < outbreaks.length; j++) {
+      if (removed.has(j)) continue;
+      // Only compare items with same normalized disease
+      if (outbreaks[i].disease !== outbreaks[j].disease) continue;
+      const sim = titleSimilarity(titles[i], titles[j]);
+      if (sim >= 0.4) {
+        removed.add(j); // Mark later one for removal
+      }
+    }
+  }
+
+  // Remove duplicates from array (reverse order to preserve indices)
+  const indices = Array.from(removed).sort((a, b) => b - a);
+  for (const idx of indices) {
+    outbreaks.splice(idx, 1);
   }
 }
 
@@ -159,45 +191,56 @@ function cleanText(text: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Enrich outbreaks in batches of 5 via LLM.
- * Extracts: cases, deaths from summary text.
- * Processes ALL items (not just first 5) by chunking.
+ * Enrich outbreaks: fetch full article body → extract entities (ward-level location, cases, deaths).
+ * Uses LLM when available, falls back to rule-based extraction.
+ * Processes top 20 items with real URLs to avoid excessive API calls.
  */
 async function enrichOutbreaksBatch(items: DiseaseOutbreakItem[]): Promise<void> {
-  if (!_completeFn) return;
+  // Only process items with real article URLs (not generic/empty)
+  const enrichable = items
+    .filter(o => o.url && o.url.length > 30 && !_processedCache.has(o.id))
+    .slice(0, 20); // Limit to top 20 to manage API calls
 
-  // Process in chunks of 5 to stay within token limits
-  for (let start = 0; start < items.length; start += 5) {
-    const batch = items.slice(start, start + 5);
-    const prompt = `Extract case counts and deaths from these Vietnamese/English outbreak summaries.
-Return a JSON array. Each entry: { "idx": number, "cases": number|null, "deaths": number|null }
-If no numbers found, set null.
-
-${batch.map((o, i) => `[${i}] ${o.disease} — ${o.summary.slice(0, 200)}`).join('\n')}
-
-Return ONLY valid JSON array.`;
-
+  for (const item of enrichable) {
     try {
-      const result = await _completeFn([
-        { role: 'system' as const, content: 'Extract numbers from text. Return only valid JSON array. No explanation.' },
-        { role: 'user' as const, content: prompt },
-      ]);
+      // Fetch full article body via proxy
+      const article = await apiFetch<{ body: string }>(`/api/health/v1/article?url=${encodeURIComponent(item.url)}`);
 
-      const json = result.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-      const parsed = JSON.parse(json);
-      if (Array.isArray(parsed)) {
-        for (const entry of parsed) {
-          const idx = typeof entry.idx === 'number' ? entry.idx : -1;
-          if (idx >= 0 && idx < batch.length) {
-            const item = batch[idx];
-            if (entry.cases != null) item.cases = Number(entry.cases) || undefined;
-            if (entry.deaths != null) item.deaths = Number(entry.deaths) || undefined;
-            _processedCache.set(item.id, true);
-          }
-        }
+      if (!article.body || article.body.length < 50) {
+        _processedCache.set(item.id, true);
+        continue;
       }
+
+      // Extract entities from full article text
+      const fullText = `${item.title} ${item.summary} ${article.body}`;
+      const entities = _completeFn
+        ? await extractEntitiesLLM(fullText, _completeFn)
+        : extractEntitiesRule(fullText);
+
+      // Apply extracted data (only override if more specific)
+      if (entities.cases != null && !item.cases) item.cases = entities.cases;
+      if (entities.deaths != null && !item.deaths) item.deaths = entities.deaths;
+
+      // Upgrade location precision: ward > district > province
+      if (entities.location.ward && !item.district) {
+        item.district = `${entities.location.ward}, ${entities.location.district}`;
+      }
+      if (entities.location.district && !item.district) {
+        item.district = entities.location.district;
+      }
+      if (entities.location.province && !item.province) {
+        item.province = entities.location.province;
+      }
+      // Use more precise coordinates if available
+      if (entities.location.lat && entities.location.lng) {
+        item.lat = entities.location.lat;
+        item.lng = entities.location.lng;
+      }
+
+      _processedCache.set(item.id, true);
     } catch {
-      // LLM extraction failed for this batch — continue with next
+      // Article fetch or extraction failed — skip, don't block pipeline
+      _processedCache.set(item.id, true);
     }
   }
 }

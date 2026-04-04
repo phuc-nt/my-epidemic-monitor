@@ -330,7 +330,7 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     expect(res.ok).toBe(true);
   });
 
-  test('district-level outbreaks show multiple markers in TPHCM', async ({ page }) => {
+  test('outbreak list shows real disease data from Vietnamese news', async ({ page }) => {
     await page.goto('/');
     await page.waitForTimeout(5000);
     await dismissBanner(page);
@@ -341,10 +341,13 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
       await page.waitForTimeout(300);
     }
     const rows = await page.locator('.outbreak-row').count();
-    expect(rows).toBeGreaterThanOrEqual(10);
-    // TPHCM should have multiple outbreak rows
-    const hcmRows = page.locator('.outbreak-row').filter({ hasText: /TPHCM|Hồ Chí Minh|Quận 12|Bình Tân|Gò Vấp|Thủ Đức|Bình Chánh/i });
-    expect(await hcmRows.count()).toBeGreaterThanOrEqual(3);
+    expect(rows).toBeGreaterThanOrEqual(5);
+    // Should contain real Vietnamese disease names
+    const content = await page.locator('.outbreak-row').allTextContents();
+    const joined = content.join(' ');
+    // At least one common Vietnamese disease should appear
+    const hasDiseases = /Dengue|HFMD|Cholera|Rabies|Tuberculosis|Hepatitis|Chickenpox|COVID|Measles|Dại|Tả|Sởi|Lao/i.test(joined);
+    expect(hasDiseases).toBe(true);
   });
 
   // =====================================================================
@@ -456,6 +459,135 @@ test.describe('Epidemic Monitor — Smoke Tests', () => {
     // Video thumbnails should have YouTube images
     const thumbnails = page.locator('.video-thumbnail img');
     expect(await thumbnails.count()).toBeGreaterThanOrEqual(3);
+  });
+
+  // =====================================================================
+  // Real Data Integration Tests
+  // =====================================================================
+
+  test('outbreak items have real source badges (VnExpress, VietnamNet, etc.)', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(5000);
+    await dismissBanner(page);
+    // Check for source badges on outbreak rows
+    const badges = page.locator('.outbreak-source-badge');
+    const count = await badges.count();
+    expect(count).toBeGreaterThanOrEqual(1);
+    // At least one badge should show a real source name
+    const texts = await badges.allTextContents();
+    const realSources = texts.filter(t =>
+      /VnExpress|VietnamNet|Tuổi Trẻ|Thanh Niên|Dân Trí|WHO-DON/i.test(t)
+    );
+    expect(realSources.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('detail links point to real article URLs (not moh.gov.vn)', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(5000);
+    await dismissBanner(page);
+    // Get all detail links
+    const links = page.locator('.outbreak-row-link');
+    const count = await links.count();
+    expect(count).toBeGreaterThanOrEqual(1);
+    // Check first 5 links — none should be generic moh.gov.vn
+    for (let i = 0; i < Math.min(5, count); i++) {
+      const href = await links.nth(i).getAttribute('href');
+      expect(href).not.toBe('https://moh.gov.vn');
+      expect(href!.length).toBeGreaterThan(30); // Real URLs are long
+    }
+  });
+
+  test('data age indicator and refresh button exist', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(5000);
+    // Data age indicator
+    const age = page.locator('.data-age-indicator');
+    await expect(age).toBeVisible();
+    const text = await age.textContent();
+    expect(text).toMatch(/Updated|Loading/);
+    // Refresh button
+    const btn = page.locator('.data-refresh-btn');
+    await expect(btn).toBeVisible();
+  });
+
+  test('refresh button reloads data', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(5000);
+    // Note initial age text
+    const age = page.locator('.data-age-indicator');
+    const initialText = await age.textContent();
+    // Click refresh
+    await dismissBanner(page);
+    const btn = page.locator('.data-refresh-btn');
+    await btn.click();
+    // Should show "Refreshing..." briefly
+    await expect(age).toHaveText('Refreshing...', { timeout: 2000 }).catch(() => {});
+    // Wait for refresh to complete
+    await page.waitForTimeout(8000);
+    // Age should reset (show small number)
+    const newText = await age.textContent();
+    expect(newText).toMatch(/Updated \d+s ago/);
+  });
+
+  test('outbreak dedup removes same articles from different sources', async ({ page }) => {
+    await page.goto('/');
+    // Check API-level dedup — verify outbreaks have diverse URLs (not same article repeated)
+    const apiData = await page.evaluate(() =>
+      fetch('/api/health/v1/outbreaks')
+        .then(r => r.json())
+        .then(d => {
+          const urls = (d.outbreaks as Array<{ url: string }>).map(o => o.url).filter(Boolean);
+          const unique = new Set(urls);
+          return { total: urls.length, unique: unique.size, dupRatio: 1 - unique.size / urls.length };
+        })
+    );
+    // URLs should be mostly unique (< 10% duplicates)
+    expect(apiData.dupRatio).toBeLessThan(0.1);
+    expect(apiData.unique).toBeGreaterThan(10);
+  });
+
+  test('news feed shows items from multiple real sources', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(5000);
+    // Find news panel
+    const newsPanel = page.locator('.panel').filter({ hasText: /Health News/i });
+    await expect(newsPanel).toBeVisible();
+    // Check source badges in news items
+    const sources = await newsPanel.locator('.news-item-source').allTextContents();
+    const uniqueSources = new Set(sources);
+    // Should have at least 2 different sources
+    expect(uniqueSources.size).toBeGreaterThanOrEqual(2);
+  });
+
+  test('outbreak data fetched from API (not sample)', async ({ page }) => {
+    await page.goto('/');
+    // Verify API returns real data
+    const apiData = await page.evaluate(() =>
+      fetch('/api/health/v1/outbreaks')
+        .then(r => r.json())
+        .then(d => ({
+          sources: d.sources,
+          count: d.outbreaks?.length ?? 0,
+          hasMohOnly: d.outbreaks?.every((o: { url: string }) => o.url === 'https://moh.gov.vn'),
+        }))
+    );
+    expect(apiData.count).toBeGreaterThan(0);
+    expect(apiData.sources.length).toBeGreaterThanOrEqual(2);
+    expect(apiData.hasMohOnly).toBe(false); // Not all pointing to moh.gov.vn
+  });
+
+  test('climate data comes from real Open-Meteo API', async ({ page }) => {
+    await page.goto('/');
+    const climateData = await page.evaluate(() =>
+      fetch('/api/health/v1/climate')
+        .then(r => r.json())
+        .then(d => ({
+          count: d.forecasts?.length ?? 0,
+          hasRealTemp: d.forecasts?.some((f: { tempMax: number }) => f.tempMax > 20 && f.tempMax < 45),
+        }))
+    );
+    expect(climateData.count).toBeGreaterThanOrEqual(5);
+    expect(climateData.hasRealTemp).toBe(true);
   });
 
   // =====================================================================

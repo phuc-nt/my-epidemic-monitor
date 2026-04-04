@@ -95,6 +95,23 @@ html, body {
 .panel-tab-btn:hover { color: var(--text); }
 .panel-tab-btn--active { color: var(--accent); border-bottom-color: var(--accent); }
 
+/* Data age + refresh */
+.tab-bar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 4px; }
+.data-age-indicator { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.data-refresh-btn {
+  border: none; background: none; cursor: pointer; font-size: 16px; color: var(--text-muted);
+  padding: 4px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;
+}
+.data-refresh-btn:hover { background: var(--surface2); color: var(--accent); }
+.data-refresh-btn.refreshing { animation: spin 1s linear infinite; color: var(--accent); pointer-events: none; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Outbreak source badge */
+.outbreak-source-badge {
+  font-size: 10px; color: var(--accent); background: rgba(37,99,235,0.08);
+  padding: 1px 5px; border-radius: 3px; font-weight: 600;
+}
+
 /* ── Panel cards ──────────────────────────────────────────── */
 
 .panel {

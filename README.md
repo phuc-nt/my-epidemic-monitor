@@ -27,11 +27,25 @@ npm install
 npm run dev
 ```
 
-Open [localhost:5173](http://localhost:5173). Map centered on Vietnam with sample outbreak data.
+Open [localhost:5173](http://localhost:5173). Map centered on Vietnam with REAL outbreak data from 6 Vietnamese RSS feeds + WHO-DON API (105 outbreaks + 50 news items, no sample data).
 
-## Screenshots
+## Key Info
 
-Map with outbreak heatmap + 8 panels (statistics, climate alerts, news, AI chat, case reporting).
+**Real Data, No Sample Data:** Live feeds from VietnamNet, Dân Trí, VnExpress, Tuổi Trẻ, Thanh Niên, WHO-DON REST API.
+
+**Data Pipeline:**
+- 6 Vietnamese RSS sources → parse disease keywords + province extraction
+- WHO-DON REST API → global outbreaks with VN geocoding
+- LLM entity extraction (background): cases, deaths, ward/district, dates
+- News dedup (Jaccard Tier 1 + LLM Tier 2)
+- IndexedDB snapshots: 5-min auto-refresh, 30-day retention for trends
+
+**Known Gaps (Real constraints):**
+- **Cases/deaths/wards = 0%**: Article content extraction via crawl4ai + LLM still processing; many crawled articles are health guides not outbreaks
+- **VietnamNet noise**: 14 "Lao" disease items (health education vs TB outbreaks)
+- **URLs expire**: Vietnamese news links rotate 1-2 days (404/redirect)
+- **WHO/CDC timeout**: International sources timeout in dev middleware (Vercel Edge works)
+- **Climate**: 5/8 provinces returning data (3 may timeout)
 
 ## Tech Stack
 
@@ -45,18 +59,16 @@ Map with outbreak heatmap + 8 panels (statistics, climate alerts, news, AI chat,
 | Test | Playwright E2E (15 tests) |
 | Deploy | Vercel, Docker + nginx |
 
-## Data Sources
+## Real Data Sources (105 + 50 items)
 
-| Source | Data | Cache |
-|--------|------|-------|
-| WHO DON | Outbreak alerts (RSS) | 5 min |
-| WHO-VN | Vietnam health news | 15 min |
-| MOH-VN | Bộ Y tế news | 15 min |
-| CDC | US health news | 15 min |
-| OWID | COVID-19 per country (CSV) | 6 hr |
-| Open-Meteo | Weather → dengue/HFMD risk | 6 hr |
+| Category | Sources | Items | Update Freq |
+|----------|---------|-------|------------|
+| **Outbreaks** | WHO-DON REST, VietnamNet, Dân Trí, VnExpress, Tuổi Trẻ, Thanh Niên | 105 | 5 min |
+| **News** | 6 VN RSS feeds (WHO, CDC configured but timeout in dev) | 50 | 5 min |
+| **Climate** | Open-Meteo 14-day forecast (8 VN provinces) | Variable | 6 hr |
+| **Static** | geoBoundaries (708 districts) + Ward DB (100+ wards) | Fixed | Static |
 
-See [docs/technical/data-sources-catalog.md](docs/technical/data-sources-catalog.md) for full details.
+See [docs/technical/data-sources-catalog.md](docs/technical/data-sources-catalog.md) for detailed source breakdown, processing pipeline, and known issues.
 
 ## Project Structure
 

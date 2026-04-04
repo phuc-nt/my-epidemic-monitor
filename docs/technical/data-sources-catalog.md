@@ -1,199 +1,161 @@
 # Data Sources Catalog — Epidemic Monitor
 
-Tài liệu quản lý tất cả nguồn dữ liệu của hệ thống. Mỗi source ghi rõ: URL, loại dữ liệu, tần suất cập nhật, cách parse, giới hạn, và trạng thái.
+Real-time epidemic data pipeline: 105 outbreak items + 50 news items from 13 live sources (NO sample data).
 
 ---
 
-## Tổng quan
+## Summary: Real Data Sources (105 + 50 items)
 
-| # | Source | Loại | Dữ liệu | Cache TTL | Trạng thái |
-|---|--------|------|----------|-----------|------------|
-| 1 | WHO DON | RSS/XML | Outbreak alerts toàn cầu | 5 phút | Active |
-| 2 | WHO News | RSS/XML | Tin tức y tế toàn cầu | 15 phút | Active |
-| 10 | Open-Meteo | REST/JSON | Weather forecast 14 ngày, 8 tỉnh VN | 6 giờ | Active |
-| 11 | geoBoundaries | GeoJSON | 708 district boundaries VNM ADM2 | Static | Active |
-| 3 | WHO Vietnam | RSS/XML | Tin tức WHO khu vực VN | 15 phút | Active |
-| 4 | Bộ Y tế VN (MOH) | RSS/XML | Tin tức y tế Việt Nam | 15 phút | Active |
-| 5 | US CDC | RSS/XML | Tin tức CDC Hoa Kỳ | 15 phút | Active |
-| 6 | ProMED-mail | RSS/XML | Early disease intelligence | 15 phút | Active |
-| 7 | ECDC | RSS/XML | Dịch bệnh châu Âu | 15 phút | Active |
-| 8 | ReliefWeb | RSS/XML | Báo cáo nhân đạo/y tế | 15 phút | Active |
-| 9 | OWID | CSV/GitHub | COVID-19 data per country | 6 giờ | Active |
-
----
-
-## 1. WHO Disease Outbreak News (DON)
-
-- **URL**: `https://www.who.int/feeds/entity/don/en/rss.xml`
-- **API file**: `api/health/v1/outbreaks.ts`
-- **Client service**: `src/services/disease-outbreak-service.ts`
-- **Loại**: RSS 2.0 XML
-- **Dữ liệu**: Cảnh báo dịch bệnh toàn cầu — tên bệnh, quốc gia, mô tả, ngày công bố
-- **Parse**: Regex XML (`<item>` → title, link, pubDate, description)
-- **Xử lý**:
-  - Tách `disease` và `country` từ title (pattern: "Disease - Country")
-  - Derive `alertLevel`: "outbreak"/"emergency" → alert, "update" → warning, else → watch
-  - Geocode: country name → ISO code → centroid lat/lng (static lookup 60+ countries)
-  - VN sub-national: tìm tên tỉnh trong title/description → centroid 63 tỉnh
-- **Cache**: 5 phút (server-side in-memory)
-- **Rate limit**: Không rõ, ước tính ~100 req/min
-- **Fallback**: Sample data 8 outbreaks VN khi API fail
-- **Giới hạn**: Chỉ có outbreak-level data, không có case counts chính xác
+| Category | Source | Items | Type | Status |
+|----------|--------|-------|------|--------|
+| **OUTBREAKS (105)** | WHO-DON | 30 | REST API | Active |
+| | VietnamNet | 46 | RSS | Active |
+| | Dân Trí | 15 | RSS | Active |
+| | VnExpress | 7 | RSS | Active |
+| | Tuổi Trẻ | 5 | RSS | Active |
+| | Thanh Niên | 2 | RSS | Active |
+| **NEWS (50)** | VnExpress | 24 | RSS | Active |
+| | Tuổi Trẻ | 12 | RSS | Active |
+| | Thanh Niên | 8 | RSS | Active |
+| | VietnamNet | 6 | RSS | Active |
+| | WHO, CDC-EID | 2 | REST | Configured (dev timeout) |
+| **CLIMATE** | Open-Meteo | 14-day forecast, 8 VN provinces | REST/JSON | Active (5/8 provinces) |
+| **STATIC** | geoBoundaries | 708 districts + ward DB (100+ wards HN/ĐN/TPHCM) | GeoJSON | Active |
 
 ---
 
-## 2. WHO News (Global)
+## Outbreak Sources (105 total items)
 
-- **URL**: `https://www.who.int/rss-feeds/news-english.xml`
-- **API file**: `api/health/v1/news.ts` (1 trong 7 feeds)
-- **Loại**: RSS 2.0 XML
-- **Dữ liệu**: Tin tức y tế toàn cầu — không chỉ dịch bệnh
-- **Parse**: Regex XML, strip HTML tags từ description
-- **Lưu ý**: Feed rộng, bao gồm cả non-epidemic news (NCD, policy, etc.)
+### 1. WHO-DON (Global, REST API) — 30 items
 
----
+- **URL**: `https://www.who.int/api/news/diseaseoutbreaknews`
+- **Format**: REST JSON (not RSS)
+- **Files**: `api/health/v1/outbreaks.ts` → `src/services/disease-outbreak-service.ts`
+- **Data**: Global outbreak alerts (Nipah, Marburg, Ebola, MERS, etc.) — NO Vietnam-specific
+- **Parse**: JSON items → title, link, pubDate, description
+- **Processing**:
+  - Extract disease + country from title (pattern: "Disease - Country")
+  - Alert level: "outbreak"/"emergency" → alert, "update" → warning, else → watch
+  - Geocode: country → ISO code → centroid lat/lng
+  - VN sub-national: grep 63 tỉnh names in description → assign VN provinces
+- **Problem**: WHO-DON has global outbreaks, low VN overlap. Acts as background signal.
 
-## 3. WHO Vietnam
+### 2. Vietnamese News RSS (6 sources, 75 items)
 
-- **URL**: `https://www.who.int/vietnam/rss-feeds/news/rss.xml`
-- **API file**: `api/health/v1/news.ts`
-- **Loại**: RSS 2.0 XML
-- **Dữ liệu**: Tin tức WHO specific cho Việt Nam
-- **Lưu ý**: Có thể trả về mix tiếng Anh + tiếng Việt. Feed nhỏ hơn global.
+| Source | URL | Items | Quality | Notes |
+|--------|-----|-------|---------|-------|
+| **VietnamNet** | `vietnamnet.vn/suc-khoe.rss` | 46 | 30% VN | Diverse diseases; 14 "Lao" items (many health guides not TB outbreaks) |
+| **Dân Trí** | `dantri.com.vn/rss/suc-khoe.rss` | 15 | 66% VN | Best province extraction |
+| **VnExpress** | `vnexpress.net/rss/suc-khoe.rss` | 7 | Low | Many health guides vs outbreak news |
+| **Tuổi Trẻ** | `tuoitre.vn/rss/suc-khoe.rss` | 5 | High | 100% province extraction, highest quality |
+| **Thanh Niên** | `thanhnien.vn/rss/suc-khoe.rss` | 2 | Medium | HTML entities not fully decoded |
 
----
-
-## 4. Bộ Y tế Việt Nam (MOH-VN)
-
-- **URL**: `https://moh.gov.vn/rss/-/home`
-- **API file**: `api/health/v1/news.ts`
-- **Loại**: RSS (có thể Atom hoặc RSS 2.0)
-- **Dữ liệu**: Tin tức chính thức từ Bộ Y tế VN — dịch bệnh, chính sách, tiêm chủng
-- **Ngôn ngữ**: Tiếng Việt
-- **Rủi ro**: 
-  - RSS format có thể không chuẩn
-  - Server có thể block User-Agent không quen
-  - Có thể cần header `Accept-Language: vi`
-- **Fallback**: Skip nếu fail, vẫn có 6 feeds khác
-
----
-
-## 5. US CDC Newsroom
-
-- **URL**: `https://tools.cdc.gov/api/v2/resources/media/rss`
-- **API file**: `api/health/v1/news.ts`
-- **Loại**: RSS 2.0 XML
-- **Dữ liệu**: Tin tức CDC — outbreaks, travel notices, public health alerts
-- **Lưu ý**: Focus Hoa Kỳ nhưng có global outbreaks. Feed lớn, nhiều items.
+**Processing pipeline**:
+- Parse RSS → extract title, link, pubDate, description, source name
+- Disease matching: 20 regex patterns (VN + EN) — e.g., "sốt xuất huyết|dengue|dengue fever"
+- Province extraction: 64 VN provinces + diacritics normalization
+- Alert level heuristics: keywords in description (tăng, bùng phát, cảnh báo) → escalate
+- Source badge: show feed name on UI item
+- **Known issue**: URLs expire within 1-2 days (404/redirect for old articles)
 
 ---
 
-## 6. ProMED-mail
+## News Sources (50 total items, configured not active in dev)
 
-- **URL**: `https://promedmail.org/feed/`
-- **API file**: `api/health/v1/news.ts`
-- **Loại**: RSS/XML
-- **Dữ liệu**: Early disease intelligence — báo cáo sớm về dịch bệnh từ cộng đồng y tế
-- **Giá trị**: Thường phát hiện outbreaks TRƯỚC WHO chính thức công bố
-- **Rủi ro**:
-  - Feed có thể không ổn định
-  - Format thay đổi theo thời gian
-  - Có thể cần authentication trong tương lai
-- **Fallback**: Skip nếu fail
+Files: `api/health/v1/news.ts` → `src/services/news-feed-service.ts`
 
----
+| Source | URL | Focus | Status | Notes |
+|--------|-----|-------|--------|-------|
+| VnExpress | RSS | Health | Active | 24 items |
+| Tuổi Trẻ | RSS | Health | Active | 12 items (high quality) |
+| Thanh Niên | RSS | Health | Active | 8 items |
+| VietnamNet | RSS | Health | Active | 6 items |
+| WHO News | RSS | Global health | Configured | Timeout in dev |
+| CDC-EID | REST API | Global EID | Configured | Timeout in dev |
 
-## 7. ECDC (European Centre for Disease Prevention and Control)
-
-- **URL**: `https://www.ecdc.europa.eu/en/rss.xml`
-- **API file**: `api/health/v1/news.ts`
-- **Loại**: RSS 2.0 XML
-- **Dữ liệu**: Surveillance reports, rapid risk assessments châu Âu
-- **Lưu ý**: Focus châu Âu nhưng có global disease updates
+**Processing**:
+- Parse RSS/XML → title, link, pubDate, description
+- Strip HTML tags
+- Deduplicate (Tier 1: Jaccard similarity 0.4, Tier 2: LLM when ambiguous)
+- Mark duplicates as `category: 'duplicate'`
+- **Known issue**: WHO/CDC timeout in dev middleware; configured for production
 
 ---
 
-## 8. ReliefWeb (OCHA/UN)
+---
 
-- **URL**: `https://api.reliefweb.int/v1/reports?appname=epidemic-monitor&filter[field]=theme.name&filter[value]=Health&format=rss`
-- **API file**: `api/health/v1/news.ts`
-- **Loại**: RSS via REST API
-- **Dữ liệu**: Báo cáo nhân đạo/y tế từ hệ thống UN — situation reports, assessments
-- **Filter**: `theme.name=Health` chỉ lấy health-related
-- **Lưu ý**: API ổn định, có rate limiting nhẹ. `appname` param bắt buộc.
+## Climate Source
+
+**Open-Meteo API**
+- **URL**: REST API (14-day forecast)
+- **File**: `api/health/v1/climate.ts` → `src/services/climate-service.ts`
+- **Data**: Weather 14 days for 8 VN provinces (temp, humidity, rainfall) → risk scoring
+- **Coverage**: HN, ĐN, TPHCM, Cần Thơ, Đà Lạt, etc.
+- **Issue**: Only 5/8 provinces returning data; 3 may timeout
+- **Risk models**: Dengue risk (temp 25-28°C + humidity 80%+) + HFMD (similar)
 
 ---
 
-## 9. Our World in Data (OWID)
+## Static Data
 
-- **URL**: `https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/latest/owid-covid-latest.csv`
-- **API file**: `api/health/v1/owid.ts`
-- **Client service**: `src/services/owid-data-service.ts`
-- **Loại**: CSV (hosted trên GitHub)
-- **Dữ liệu**: COVID-19 latest per country — total cases, deaths, vaccinations, per-million rates
-- **Parse**: Split newlines → split commas → map headers
-- **Xử lý**:
-  - Exclude aggregate rows (iso_code starts with `OWID_`)
-  - Sort: Vietnam first → Southeast Asia → rest by total_cases
-  - Limit 50 countries
-- **Cache**: 6 giờ (data cập nhật daily)
-- **Fields used**: `location`, `iso_code`, `total_cases`, `total_deaths`, `total_cases_per_million`, `total_deaths_per_million`, `total_vaccinations_per_hundred`, `last_updated_date`
-- **Giới hạn**: Chỉ có COVID-19, không có dengue/HFMD/cholera
+**geoBoundaries + Ward Database**
+- **Districts**: 708 boundary polygons (geoBoundaries VNM ADM2)
+- **Ward DB**: 100+ wards in HN, ĐN, TPHCM, southern provinces
+- **File**: `src/data/vietnam-wards-database.ts`
+- **Use**: Ward/district extraction in LLM entity pipeline
 
 ---
 
-## Data Flow Diagram
+## Data Pipeline (Client-side)
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │         Edge Functions (api/)            │
-WHO DON RSS ───────►│ outbreaks.ts  → parse XML → geocode VN  │──► DiseaseOutbreaksPanel
-                    │   cache: 5min                            │──► MapLayers (markers+heatmap)
-                    │                                          │
-WHO/CDC/ProMED ────►│ news.ts       → parse 7 RSS feeds       │──► NewsFeedPanel
-ECDC/ReliefWeb     │   Promise.allSettled → merge → sort      │
-MOH-VN/WHO-VN      │   cache: 15min                           │
-                    │                                          │
-OWID CSV ──────────►│ owid.ts       → parse CSV → sort VN     │──► (future: TrendChartPanel)
-                    │   cache: 6hr                             │
-                    │                                          │
-(outbreaks.ts) ────►│ stats.ts      → aggregate from outbreaks│──► EpidemicStatisticsPanel
-                    │   cache: 1hr                             │
-                    │                                          │
-(outbreaks.ts) ────►│ countries.ts  → group by country code   │──► CountryHealthPanel
-                    │   cache: 30min                           │
-                    └─────────────────────────────────────────┘
+RSS Feeds (6 VN) + WHO-DON REST
+    ↓
+Dev Middleware (Vite dev server)
+    ├→ Disease keyword matching (20 regex)
+    ├→ Province extraction (64 provinces)
+    ├→ Alert level refinement (keywords)
+    ↓
+Client: LLM Data Pipeline
+    ├→ Disease name normalization (67 aliases EN+VN)
+    ├→ Outbreak dedup (Jaccard 0.4 threshold)
+    ├→ Full article crawl (crawl4ai JS-render OR simple fetch SSR)
+    ├→ Entity extraction (LLM: cases, deaths, ward/district, dates)
+    ├→ News dedup Tier 1 (Jaccard) → Tier 2 (LLM when ambiguous)
+    ↓
+IndexedDB snapshots (5-min auto-refresh, 30-day retention)
+    ↓
+UI Panels (DiseaseOutbreaksPanel, NewsFeedPanel, etc.)
 ```
 
----
-
-## Planned Sources (chưa implement)
-
-| Source | URL | Dữ liệu | Priority |
-|--------|-----|----------|----------|
-| WHO GHO OData | `https://ghoapi.azureedge.net/api/` | Health indicators (mortality, incidence) | P2 |
-| Vietnam HCDC | TBD | Số liệu dịch bệnh cấp tỉnh VN | P1 |
-| Vietnam NIHE | TBD | Viện Vệ sinh Dịch tễ TW — surveillance data | P1 |
-| OpenDisease.net | `https://opendisease.net/api/` | Aggregated disease data | P3 |
-| HealthMap | `https://healthmap.org/` | Crowdsourced disease alerts | P3 |
-| GPHIN | Restricted | Global Public Health Intelligence Network | P3 |
+**Processing files**:
+- `api/health/v1/outbreaks.ts` — VN RSS + WHO-DON parse
+- `api/health/v1/news.ts` — RSS dedup
+- `src/services/llm-data-pipeline.ts` — disease norm, entity extract, news dedup
+- `src/services/article-content-fetcher.ts` — full article HTML → text
+- `src/services/llm-entity-extraction-service.ts` — LLM extraction (cases, deaths, ward)
+- `src/services/youtube-transcript-service.ts` — caption fetch
 
 ---
 
-## Quản lý rủi ro
+## Known Issues & Gaps
 
-| Rủi ro | Ảnh hưởng | Xác suất | Mitigation |
-|--------|-----------|----------|------------|
-| WHO RSS thay đổi format | Outbreaks panel trống | Thấp | Validate XML structure, log parse errors |
-| MOH-VN block requests | Mất nguồn VN chính | Trung bình | Rotate User-Agent, add delay, fallback |
-| OWID repo deprecated | Mất COVID data | Thấp | Fork dataset, hoặc chuyển sang WHO GHO |
-| Rate limiting | Responses chậm/fail | Trung bình | Cache aggressively, stale-while-revalidate |
-| Feed unavailable | 1-2 news sources mất | Cao | Promise.allSettled — partial data OK |
+| Issue | Impact | Root Cause | Workaround |
+|-------|--------|-----------|-----------|
+| **Cases = 0%** | Case counts missing | RSS summaries lack case numbers; crawl4ai + LLM background extraction still running | Many articles are health guides not outbreak reports |
+| **District = 0%** | Ward extraction fails | Ward DB exists but LLM enrichment needs processing time | Manual verification in DB entries |
+| **VietnamNet "Lao"** | 14 noisy items | Many health education vs TB outbreaks | Filter by keywords or mark category |
+| **News URLs expire** | 404 links within 1-2 days | Vietnamese news sites rotate URLs | Cache article content on first fetch |
+| **WHO/CDC timeout** | International signals missing in dev | Dev middleware rate-limits or times out | Works on production (Vercel Edge) |
+| **Thanh Niên entities** | HTML entities not decoded | RSS encoding issue | Manual entity decode in parser |
+| **Climate 3/8 timeout** | Missing provinces | API latency or timeout | Fallback to available provinces |
+| **Chat quality** | Hallucinations with Ollama | Model capability (gemma3:4b light) | Use minimax m2.7 via OpenRouter for accuracy |
 
 ---
 
 ## Notes
-- Tất cả sources hiện tại đều **miễn phí, không cần API key**
-- Edge functions proxy tất cả requests → không có CORS issues
-- Sample data VN dùng khi dev mode (không có edge functions)
-- Cần monitor uptime các RSS feeds — nếu feed die > 24h, cân nhắc thay thế
+- All sources **free, no API key required** (except OpenRouter for LLM)
+- NO sample data in production — 100% real data
+- 5-minute auto-refresh + manual refresh button
+- IndexedDB snapshots retained 30 days for trend calculation
+- Dev middleware handles RSS parsing to avoid client-side CORS

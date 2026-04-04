@@ -18,6 +18,8 @@ export interface DiseaseOutbreakItem {
   province?: string;
   /** District name (quận/huyện) — for sub-city precision */
   district?: string;
+  /** Data source name (e.g. VnExpress, WHO-DON) */
+  source?: string;
 }
 
 export interface NewsItem {

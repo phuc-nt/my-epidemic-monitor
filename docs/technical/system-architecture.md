@@ -87,6 +87,48 @@ graph TB
 
 ---
 
+## Real Data Pipeline (105 + 50 items, NO sample data)
+
+**Sources:**
+- Outbreaks (105): WHO-DON (30) + VietnamNet (46) + Dân Trí (15) + VnExpress (7) + Tuổi Trẻ (5) + Thanh Niên (2)
+- News (50): VnExpress (24) + Tuổi Trẻ (12) + Thanh Niên (8) + VietnamNet (6)
+- Climate: Open-Meteo 14-day forecast, 8 VN provinces
+
+**Processing Stages:**
+
+```
+Stage 1: Fetch & Parse (server)
+  RSS Feeds + WHO-DON REST → dev middleware (api/health/v1/*.ts)
+  ├─ Disease keyword matching (20 regex: sốt xuất huyết, covid, etc.)
+  ├─ Province extraction (64 VN provinces + diacritics norm)
+  ├─ Alert level heuristics (keywords: bùng phát, cảnh báo → escalate)
+  └─ Source badge assignment
+
+Stage 2: Client-side Enrichment (llm-data-pipeline.ts)
+  ├─ Disease name normalization (67 aliases EN+VN)
+  ├─ Outbreak dedup (Jaccard title similarity, 0.4 threshold)
+  ├─ Full article content crawl (crawl4ai JS-render or simple fetch)
+  ├─ LLM entity extraction (cases, deaths, ward/district, dates)
+  └─ News dedup Tier 1 (Jaccard) + Tier 2 (LLM when ambiguous)
+
+Stage 3: UI Rendering + Storage
+  ├─ IndexedDB snapshots (5-min auto-refresh, 30-day retention)
+  ├─ DiseaseOutbreaksPanel + NewsFeedPanel updates
+  ├─ Map layer markers + heatmap + early warning zones
+  └─ Breaking news banner (ALERT outbreaks)
+```
+
+**Known Gaps (REAL, not planned):**
+- **Cases = 0%**: RSS summaries lack case counts; crawl4ai + LLM background extraction runs but many articles are health guides
+- **District = 0%**: Ward DB exists (100+ wards HN/ĐN/TPHCM) but LLM enrichment needs processing time
+- **VietnamNet noise**: 14 "Lao" items, many health education not TB outbreaks
+- **URL expiry**: VN news URLs rotate within 1-2 days (404/redirect)
+- **WHO/CDC timeout**: International sources timeout in dev middleware (works on Vercel Edge)
+- **Climate gaps**: Only 5/8 provinces returning data (3 may timeout)
+- **Chat quality**: Ollama gemma3:4b hallucinates; minimax m2.7 accurate
+
+---
+
 ## Luồng dữ liệu
 
 ```mermaid

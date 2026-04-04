@@ -189,6 +189,7 @@ export class DiseaseOutbreaksPanel extends Panel {
     const title = h('span', { className: 'outbreak-row-title' }, escapeHtml(item.disease));
     const meta = h('span', { className: 'outbreak-row-meta' },
       escapeHtml(item.country), ' · ', relativeTime(item.publishedAt),
+      ...(item.source ? [' · ', h('span', { className: 'outbreak-source-badge' }, item.source)] : []),
       ...(escalated ? [h('span', { className: 'escalation-badge' }, '⬆ ESCALATED')] : []),
     );
     const summary = h('p', { className: 'outbreak-row-summary' },

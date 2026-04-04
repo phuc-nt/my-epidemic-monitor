@@ -1,7 +1,8 @@
 /**
  * Cross-Source Signal Detection Service.
- * Detects when outbreak data and news mention the same disease+location,
- * indicating multiple independent sources are reporting the same outbreak.
+ * Detects when multiple independent sources report the same disease+location,
+ * using both outbreak data and news items. Groups by canonical disease + location,
+ * aggregates distinct sources, and assigns confidence based on source count.
  */
 import type { DiseaseOutbreakItem, NewsItem } from '@/types';
 
@@ -13,64 +14,80 @@ export interface CrossSourceSignal {
   id: string;
   disease: string;
   location: string;           // province or country
-  sources: string[];          // e.g. ['WHO DON', 'MOH-VN', 'CDC']
+  sources: string[];          // e.g. ['VnExpress', 'VietnamNet', 'WHO-DON']
   sourceCount: number;
   confidence: 'high' | 'medium' | 'low'; // 3+ = high, 2 = medium, 1 = low
   latestMention: number;      // timestamp (ms)
-  summary: string;            // e.g. "Dengue in TPHCM reported by WHO, MOH-VN, CDC"
+  summary: string;
 }
 
 // ---------------------------------------------------------------------------
-// Disease alias lookup — maps canonical disease terms to search keywords
+// Disease alias lookup
 // ---------------------------------------------------------------------------
 
-/** Canonical disease name → list of alternative keywords to match in news titles. */
 const DISEASE_ALIASES: Record<string, string[]> = {
-  dengue:    ['dengue', 'sxh', 'sốt xuất huyết', 'deng'],
-  hfmd:      ['hand foot mouth', 'hfmd', 'tay chân miệng', 'tcm'],
-  measles:   ['measles', 'sởi'],
-  covid:     ['covid', 'sars-cov', 'coronavirus'],
-  influenza: ['influenza', 'flu', 'cúm'],
+  dengue:      ['dengue', 'sxh', 'sốt xuất huyết', 'deng'],
+  hfmd:        ['hand foot mouth', 'hfmd', 'tay chân miệng', 'tcm'],
+  measles:     ['measles', 'sởi'],
+  covid:       ['covid', 'sars-cov', 'coronavirus'],
+  influenza:   ['influenza', 'flu', 'cúm'],
+  cholera:     ['cholera', 'tả', 'dịch tả'],
+  rabies:      ['rabies', 'dại', 'bệnh dại'],
+  tuberculosis:['tuberculosis', 'lao', 'bệnh lao', 'tb'],
+  hepatitis:   ['hepatitis', 'viêm gan'],
+  chickenpox:  ['chickenpox', 'varicella', 'thủy đậu'],
+  diphtheria:  ['diphtheria', 'bạch hầu'],
+  pertussis:   ['pertussis', 'ho gà', 'whooping'],
+  encephalitis:['encephalitis', 'viêm não'],
+  mpox:        ['mpox', 'monkeypox', 'đậu mùa khỉ'],
+  ebola:       ['ebola'],
+  marburg:     ['marburg'],
+  nipah:       ['nipah'],
+  malaria:     ['malaria', 'sốt rét'],
 };
 
-/** Return the canonical disease key for an outbreak disease string. */
 function canonicalize(disease: string): string {
   const lower = disease.toLowerCase();
   for (const [key, aliases] of Object.entries(DISEASE_ALIASES)) {
     if (aliases.some(a => lower.includes(a))) return key;
   }
-  // Fallback: first word lowercase
   return lower.split(/\s+/)[0] ?? lower;
 }
 
-/** Return true if the news title contains any alias for the given canonical key. */
-function newsMatchesDisease(title: string, canonicalKey: string): boolean {
+function textMatchesDisease(text: string, canonicalKey: string): boolean {
   const aliases = DISEASE_ALIASES[canonicalKey] ?? [canonicalKey];
-  const lower = title.toLowerCase();
+  const lower = text.toLowerCase();
   return aliases.some(a => lower.includes(a));
+}
+
+// ---------------------------------------------------------------------------
+// Location matching — normalize diacritics for fuzzy province matching
+// ---------------------------------------------------------------------------
+
+/** Remove Vietnamese diacritics for fuzzy matching. */
+function removeDiacritics(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
+}
+
+/** Check if news text mentions a location (province or country). */
+function textMatchesLocation(text: string, location: string): boolean {
+  const normText = removeDiacritics(text);
+  const normLoc = removeDiacritics(location);
+  // Direct substring match
+  if (normText.includes(normLoc)) return true;
+  // Try each word of location (e.g. "Ho Chi Minh" → "chi minh" match in "tp. ho chi minh")
+  const words = normLoc.split(/\s+/).filter(w => w.length > 3);
+  return words.length > 0 && words.every(w => normText.includes(w));
 }
 
 // ---------------------------------------------------------------------------
 // Signal detection
 // ---------------------------------------------------------------------------
 
-/** Fixed source label for WHO Disease Outbreak News (DON) entries. */
-const OUTBREAK_SOURCE = 'WHO DON';
-
-/**
- * Detect cross-source signals by matching outbreak records with news items.
- * Groups by canonical disease + location, aggregates distinct sources,
- * and assigns confidence based on source count.
- *
- * @param outbreaks - Current outbreak dataset
- * @param news      - Current news feed
- * @returns Array of signals sorted by confidence desc, then sourceCount desc
- */
 export function detectCrossSourceSignals(
   outbreaks: DiseaseOutbreakItem[],
   news: NewsItem[],
 ): CrossSourceSignal[] {
-  // Map: "<canonicalDisease>|<location>" → accumulated signal data
   const signalMap = new Map<string, {
     disease: string;
     location: string;
@@ -79,10 +96,11 @@ export function detectCrossSourceSignals(
     latestMention: number;
   }>();
 
-  // --- Step 1: seed from outbreaks ---
+  // --- Step 1: seed from outbreaks (each outbreak has a real source now) ---
   for (const ob of outbreaks) {
     const canonicalKey = canonicalize(ob.disease);
     const location = ob.province ?? ob.country;
+    const source = ob.source ?? 'Unknown';
     const mapKey = `${canonicalKey}|${location}`;
 
     if (!signalMap.has(mapKey)) {
@@ -90,36 +108,38 @@ export function detectCrossSourceSignals(
         disease: ob.disease,
         location,
         canonicalKey,
-        sources: new Set([OUTBREAK_SOURCE]),
+        sources: new Set([source]),
         latestMention: ob.publishedAt,
       });
     } else {
       const entry = signalMap.get(mapKey)!;
-      entry.sources.add(OUTBREAK_SOURCE);
+      entry.sources.add(source);
       if (ob.publishedAt > entry.latestMention) entry.latestMention = ob.publishedAt;
     }
   }
 
-  // --- Step 2: enrich from news ---
+  // --- Step 2: enrich from news (match BOTH disease AND location) ---
   for (const item of news) {
-    for (const [mapKey, entry] of signalMap) {
-      if (newsMatchesDisease(item.title, entry.canonicalKey)) {
+    const text = `${item.title} ${item.summary ?? ''}`;
+    for (const [, entry] of signalMap) {
+      if (textMatchesDisease(text, entry.canonicalKey) && textMatchesLocation(text, entry.location)) {
         const source = item.source || 'Unknown';
-        // Avoid double-counting outbreak source label
-        if (source !== OUTBREAK_SOURCE) entry.sources.add(source);
+        entry.sources.add(source);
         if (item.publishedAt > entry.latestMention) entry.latestMention = item.publishedAt;
       }
     }
   }
 
-  // --- Step 3: build CrossSourceSignal objects ---
+  // --- Step 3: build signals (only include entries with 2+ sources) ---
   const signals: CrossSourceSignal[] = [];
 
   for (const [mapKey, entry] of signalMap) {
     const sourcesArr = Array.from(entry.sources);
     const sourceCount = sourcesArr.length;
+    if (sourceCount < 2) continue; // Skip single-source entries
+
     const confidence: CrossSourceSignal['confidence'] =
-      sourceCount >= 3 ? 'high' : sourceCount === 2 ? 'medium' : 'low';
+      sourceCount >= 3 ? 'high' : 'medium';
 
     const displayDisease = entry.disease.split('(')[0]?.trim() ?? entry.disease;
     signals.push({
@@ -134,7 +154,7 @@ export function detectCrossSourceSignals(
     });
   }
 
-  // --- Step 4: sort by confidence desc, then sourceCount desc ---
+  // Sort by confidence desc, then sourceCount desc
   const CONFIDENCE_ORDER: Record<CrossSourceSignal['confidence'], number> = { high: 0, medium: 1, low: 2 };
   signals.sort((a, b) => {
     const cDiff = CONFIDENCE_ORDER[a.confidence] - CONFIDENCE_ORDER[b.confidence];

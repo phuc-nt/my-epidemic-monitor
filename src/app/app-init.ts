@@ -24,7 +24,7 @@ import { updateMapLayers } from '@/components/map-layers/index';
 import { fetchDiseaseOutbreaks } from '@/services/disease-outbreak-service';
 import { fetchEpidemicStats } from '@/services/epidemic-stats-service';
 import { fetchHealthNews } from '@/services/news-feed-service';
-import { SAMPLE_OUTBREAKS, SAMPLE_STATS, SAMPLE_NEWS } from '@/services/sample-data';
+import { invalidateCache } from '@/services/fetch-cache';
 import { NewsFeedPanel } from '@/components/news-feed-panel';
 import { ChatPanel } from '@/components/chat-panel';
 import { ClimateAlertsPanel } from '@/components/climate-alerts-panel';
@@ -99,6 +99,12 @@ export async function initApp(): Promise<void> {
       tabBar.appendChild(btn);
     }
 
+    // Data age indicator + refresh button
+    const dataAge = h('span', { className: 'data-age-indicator' }, 'Loading...');
+    const refreshBtn = h('button', { className: 'data-refresh-btn', title: 'Refresh data' }, '⟳');
+    const rightGroup = h('div', { className: 'tab-bar-right' }, dataAge, refreshBtn);
+    tabBar.appendChild(rightGroup);
+
     panelsGrid.insertBefore(tabBar, panelsGrid.firstChild);
 
     // Mount all panels (visibility controlled by showTab)
@@ -141,7 +147,56 @@ export async function initApp(): Promise<void> {
       ctx.isMobile = window.innerWidth < 768;
     });
 
-    // 10. Fetch data — fallback to sample data when API unavailable
+    // 10. Data fetch + refresh logic
+    let lastFetchTime = 0;
+
+    function updateDataAge(): void {
+      if (!lastFetchTime) { dataAge.textContent = 'Loading...'; return; }
+      const secs = Math.floor((Date.now() - lastFetchTime) / 1000);
+      if (secs < 60) dataAge.textContent = `Updated ${secs}s ago`;
+      else if (secs < 3600) dataAge.textContent = `Updated ${Math.floor(secs / 60)}m ago`;
+      else dataAge.textContent = `Updated ${Math.floor(secs / 3600)}h ago`;
+    }
+
+    async function fetchAllData(): Promise<{ outbreaks: DiseaseOutbreakItem[]; stats: EpidemicStats; news: NewsItem[] }> {
+      invalidateCache('disease-outbreaks');
+      invalidateCache('epidemic-stats');
+      invalidateCache('health-news');
+
+      const [outbreaks, stats, news] = await Promise.all([
+        fetchDiseaseOutbreaks(),
+        fetchEpidemicStats(),
+        fetchHealthNews(),
+      ]);
+      lastFetchTime = Date.now();
+      updateDataAge();
+      return { outbreaks, stats, news };
+    }
+
+    function applyData(outbreaks: DiseaseOutbreakItem[], stats: EpidemicStats, news: NewsItem[]): void {
+      ctx.outbreaks = outbreaks;
+      ctx.news = news;
+
+      outbreaksPanel.updateData(outbreaks);
+      newsPanel.updateData(news);
+
+      // Cross-source signal detection
+      const signals = detectCrossSourceSignals(outbreaks, news);
+      signalsPanel.updateData(signals, outbreaks);
+
+      // Breaking news banner
+      const alertOutbreaks = outbreaks.filter(o => o.alertLevel === 'alert');
+      if (alertOutbreaks.length > 0) {
+        const top = alertOutbreaks[0];
+        const totalCases = alertOutbreaks.reduce((s, o) => s + (o.cases ?? 0), 0);
+        banner.show(
+          `${top.disease} — ${alertOutbreaks.length} ổ dịch cấp ALERT, ${totalCases.toLocaleString()} ca`,
+          'alert',
+        );
+      }
+    }
+
+    // Initial fetch
     outbreaksPanel.showLoading();
     statsPanel.showLoading();
     newsPanel.showLoading();
@@ -151,42 +206,48 @@ export async function initApp(): Promise<void> {
     let news: NewsItem[];
 
     try {
-      [outbreaks, stats, news] = await Promise.all([
-        fetchDiseaseOutbreaks(),
-        fetchEpidemicStats(),
-        fetchHealthNews(),
-      ]);
-      // Use sample data if API returned empty
-      if (!outbreaks.length) outbreaks = SAMPLE_OUTBREAKS;
-      if (!stats.totalOutbreaks) stats = SAMPLE_STATS;
-      if (!news.length) news = SAMPLE_NEWS;
-    } catch {
-      console.info('[EpidemicMonitor] API unavailable, using sample Vietnam data');
-      outbreaks = SAMPLE_OUTBREAKS;
-      stats = SAMPLE_STATS;
-      news = SAMPLE_NEWS;
+      ({ outbreaks, stats, news } = await fetchAllData());
+      console.info(`[EpidemicMonitor] Live data — ${outbreaks.length} outbreaks, ${news.length} news`);
+    } catch (err) {
+      console.error('[EpidemicMonitor] Data fetch failed:', err);
+      outbreaks = [];
+      stats = { totalOutbreaks: 0, activeAlerts: 0, countriesAffected: 0, topDiseases: [], lastUpdated: 0 };
+      news = [];
+    }
+    applyData(outbreaks, stats, news);
+
+    // Shared refresh logic — saves snapshot for timeline accumulation
+    async function refreshData(silent = false): Promise<void> {
+      const fresh = await fetchAllData();
+      applyData(fresh.outbreaks, fresh.stats, fresh.news);
+      // Re-run LLM pipeline (entity extraction, dedup) on fresh data
+      void processOutbreaks(fresh.outbreaks);
+      void processNews(fresh.news);
+      // Accumulate snapshot for historical timeline
+      void saveSnapshot(fresh.outbreaks);
+      if (!silent) console.info(`[EpidemicMonitor] Refreshed — ${fresh.outbreaks.length} outbreaks, ${fresh.news.length} news`);
     }
 
-    ctx.outbreaks = outbreaks;
-    ctx.news = news;
+    // Refresh button handler
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.classList.add('refreshing');
+      dataAge.textContent = 'Refreshing...';
+      try {
+        await refreshData();
+      } catch (err) {
+        console.error('[EpidemicMonitor] Refresh failed:', err);
+        dataAge.textContent = 'Refresh failed';
+      }
+      refreshBtn.classList.remove('refreshing');
+    });
 
-    outbreaksPanel.updateData(outbreaks);
-    newsPanel.updateData(news);
+    // Auto-refresh every 5 minutes — accumulates snapshots for timeline
+    setInterval(async () => {
+      try { await refreshData(true); } catch { /* Silent retry next interval */ }
+    }, 5 * 60 * 1000);
 
-    // Cross-source signal detection
-    const signals = detectCrossSourceSignals(outbreaks, news);
-    signalsPanel.updateData(signals, outbreaks);
-
-    // Breaking news banner — show if any ALERT-level outbreak
-    const alertOutbreaks = outbreaks.filter(o => o.alertLevel === 'alert');
-    if (alertOutbreaks.length > 0) {
-      const top = alertOutbreaks[0];
-      const totalCases = alertOutbreaks.reduce((s, o) => s + (o.cases ?? 0), 0);
-      banner.show(
-        `${top.disease} — ${alertOutbreaks.length} ổ dịch cấp ALERT, ${totalCases.toLocaleString()} ca`,
-        'alert',
-      );
-    }
+    // Update age indicator every 30 seconds
+    setInterval(updateDataAge, 30_000);
 
     // Snapshot store: save current data + compute trends
     try {
