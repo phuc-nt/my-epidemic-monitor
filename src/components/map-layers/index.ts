@@ -39,6 +39,7 @@ let _callbacks: LayerCallbacks = {};
 let _earlyWarnings: EarlyWarning[] = [];
 let _districtGeoJson: unknown = null;
 let _highlightedProvince: string | null = null;
+let _selectedDate: string | null = null;
 
 /**
  * Rebuild and push the active layer stack to the map.
@@ -88,6 +89,12 @@ export function setHighlightedProvince(province: string | null): void {
   if (_shell) _applyLayers();
 }
 
+/** Set selected date (YYYY-MM-DD) — other-day markers rendered gray + smaller. Pass null to clear. */
+export function setSelectedDate(date: string | null): void {
+  _selectedDate = date;
+  if (_shell) _applyLayers();
+}
+
 /** Return current visibility state (copy). */
 export function getLayerVisibility(): Record<LayerName, boolean> {
   return { ..._visible };
@@ -116,7 +123,7 @@ function _applyLayers(): void {
   }
 
   if (_visible.markers) {
-    layers.push(createOutbreakMarkersLayer(_outbreaks, _callbacks.onMarkerClick, _highlightedProvince));
+    layers.push(createOutbreakMarkersLayer(_outbreaks, _callbacks.onMarkerClick, _highlightedProvince, _selectedDate));
   }
 
   if (_visible.earlyWarnings && _earlyWarnings.length > 0) {

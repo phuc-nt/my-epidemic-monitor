@@ -143,20 +143,17 @@ interface HotspotItem {
   source_urls: string;
 }
 
-async function fetchPipelineHotspots(): Promise<Record<string, unknown>[]> {
-  const apiUrl = process.env.EPIDEMIC_API_URL;
-  const apiKey = process.env.EPIDEMIC_API_KEY;
-  if (!apiUrl || !apiKey) return [];
-
-  const today = new Date().toISOString().split('T')[0];
-  const res = await fetch(`${apiUrl}/hotspots?day=${today}`, {
-    headers: { 'X-Api-Key': apiKey },
-    signal: AbortSignal.timeout(10000),
+/** Return last 7 days as YYYY-MM-DD strings, newest first. */
+function getLast7Days(): string[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    return d.toISOString().split('T')[0];
   });
-  if (!res.ok) throw new Error(`Pipeline API ${res.status}`);
-  const data = await res.json() as { hotspots: HotspotItem[] };
+}
 
-  return (data.hotspots ?? []).map(h => {
+function mapHotspots(hotspots: HotspotItem[]): Record<string, unknown>[] {
+  return hotspots.map(h => {
     const province = String(h.province ?? '');
     const coords = resolveProvinceCoords(province);
     return {
@@ -176,6 +173,33 @@ async function fetchPipelineHotspots(): Promise<Record<string, unknown>[]> {
       cases: h.peak_cases ? Number(h.peak_cases) : undefined,
     };
   });
+}
+
+async function fetchDayHotspots(apiUrl: string, apiKey: string, day: string): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`${apiUrl}/hotspots?day=${day}`, {
+    headers: { 'X-Api-Key': apiKey },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) return [];
+  const data = await res.json() as { hotspots: HotspotItem[] };
+  return mapHotspots(data.hotspots ?? []);
+}
+
+/** Fetch last 7 days of hotspots in parallel — returns all items sorted newest first. */
+async function fetchPipelineHotspots(): Promise<Record<string, unknown>[]> {
+  const apiUrl = process.env.EPIDEMIC_API_URL;
+  const apiKey = process.env.EPIDEMIC_API_KEY;
+  if (!apiUrl || !apiKey) return [];
+
+  const days = getLast7Days();
+  const results = await Promise.allSettled(days.map(day => fetchDayHotspots(apiUrl, apiKey, day)));
+
+  const all: Record<string, unknown>[] = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled') all.push(...r.value);
+  }
+  // Sort newest first so LLM context builder gets today's data at top
+  return all.sort((a, b) => (b.publishedAt as number) - (a.publishedAt as number));
 }
 
 // ---------------------------------------------------------------------------

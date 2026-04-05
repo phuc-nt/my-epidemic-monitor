@@ -37,7 +37,7 @@ import { complete } from '@/services/llm-router';
 import { fetchClimateForecasts } from '@/services/climate-service';
 import { initSnapshotDB, saveSnapshot, getRecentSnapshots, pruneOldSnapshots } from '@/services/snapshot-store';
 import { computeStatsDelta, computeAllTrends, detectEscalations, detectEarlyWarnings } from '@/services/trend-calculator';
-import { setEarlyWarnings, setDistrictGeoJson, setHighlightedProvince } from '@/components/map-layers/index';
+import { setEarlyWarnings, setDistrictGeoJson, setHighlightedProvince, setSelectedDate } from '@/components/map-layers/index';
 import { BreakingNewsBanner } from '@/components/breaking-news-banner';
 import { CrossSourceSignalsPanel } from '@/components/cross-source-signals-panel';
 import { ProvinceDeepDivePanel } from '@/components/province-deep-dive-panel';
@@ -107,6 +107,33 @@ export async function initApp(): Promise<void> {
     tabBar.appendChild(rightGroup);
 
     panelsGrid.insertBefore(tabBar, panelsGrid.firstChild);
+
+    // Timeline bar — 7-day date selector
+    const todayStr = new Date().toISOString().split('T')[0];
+    let _selectedDate = todayStr;
+    const timelineBar = h('div', { className: 'timeline-bar' });
+    const timelineDays = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i)); // oldest → newest
+      return d.toISOString().split('T')[0];
+    });
+
+    const tlBtns = new Map<string, HTMLElement>();
+    for (const day of timelineDays) {
+      const d = new Date(day + 'T00:00:00');
+      const label = day === todayStr
+        ? 'Hôm nay'
+        : `${d.getDate()}/${d.getMonth() + 1}`;
+      const btn = h('button', {
+        className: `timeline-day-btn${day === todayStr ? ' timeline-day-btn--active' : ''}`,
+        dataset: { date: day },
+        title: day,
+      }, label);
+      btn.addEventListener('click', () => emit('day-selected', day));
+      tlBtns.set(day, btn);
+      timelineBar.appendChild(btn);
+    }
+    panelsGrid.insertBefore(timelineBar, tabBar.nextSibling);
 
     // Mount all panels (visibility controlled by showTab)
     for (const group of Object.values(tabGroups)) {
@@ -321,6 +348,22 @@ export async function initApp(): Promise<void> {
       updateMapLayers(mapShell, filtered, riskScores, null, mapCallbacks);
       outbreaksPanel.updateData(filtered);
     });
+
+    // Day selected on timeline → filter panel to that day + dim map markers for other days
+    on('day-selected', (data) => {
+      const date = data as string;
+      _selectedDate = date;
+      // Update timeline button styles
+      for (const [day, btn] of tlBtns) {
+        btn.classList.toggle('timeline-day-btn--active', day === date);
+      }
+      setSelectedDate(date);
+      outbreaksPanel.filterByDate(date);
+    });
+
+    // Default: filter to today on load
+    setSelectedDate(todayStr);
+    outbreaksPanel.filterByDate(todayStr);
 
     // 11. Load district GeoJSON boundaries (non-blocking)
     fetch('/data/vietnam-districts.geojson')

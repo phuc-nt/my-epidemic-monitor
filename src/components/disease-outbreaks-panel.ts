@@ -39,6 +39,7 @@ export class DiseaseOutbreaksPanel extends Panel {
   private _search = '';
   private _showAll = false;
   private _provinceFilter: string | null = null;
+  private _dateFilter: string | null = null; // YYYY-MM-DD
   private _filterBar: HTMLElement;
   private _provinceChip: HTMLElement;
   private _searchInput: HTMLInputElement;
@@ -79,6 +80,13 @@ export class DiseaseOutbreaksPanel extends Panel {
     this._syncProvinceChip();
     this._render();
     emit('province-filter-changed', province);
+  }
+
+  /** Filter list to a specific date (YYYY-MM-DD). Pass null to show all. */
+  filterByDate(date: string | null): void {
+    this._dateFilter = date;
+    this._showAll = false;
+    this._render();
   }
 
   /** Set escalation info — outbreaks that recently increased severity. */
@@ -183,6 +191,10 @@ export class DiseaseOutbreaksPanel extends Panel {
     return this._outbreaks.filter(o => {
       if (this._filter && o.alertLevel !== this._filter) return false;
       if (this._provinceFilter && o.province !== this._provinceFilter) return false;
+      if (this._dateFilter) {
+        const day = new Date(o.publishedAt).toISOString().split('T')[0];
+        if (day !== this._dateFilter) return false;
+      }
       if (this._search) {
         const hay = `${o.disease} ${o.country} ${o.province ?? ''}`.toLowerCase();
         if (!hay.includes(this._search)) return false;

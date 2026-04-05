@@ -21,15 +21,22 @@ const ALERT_RADII: Record<AlertLevel, number> = {
   watch:   12_000,
 };
 
+/** Extract YYYY-MM-DD from a UTC timestamp. */
+function dayOf(ts: number): string {
+  return new Date(ts).toISOString().split('T')[0];
+}
+
 /**
  * Build a ScatterplotLayer for geolocated outbreaks.
  * Items without lat/lng are silently excluded.
- * @param highlightedProvince - if set, non-matching markers are dimmed
+ * @param highlightedProvince - non-matching markers are dimmed
+ * @param selectedDate - YYYY-MM-DD; markers from other days rendered gray + smaller
  */
 export function createOutbreakMarkersLayer(
   outbreaks: DiseaseOutbreakItem[],
   onClick?: (item: DiseaseOutbreakItem) => void,
   highlightedProvince?: string | null,
+  selectedDate?: string | null,
 ): ScatterplotLayer<DiseaseOutbreakItem> {
   const data = outbreaks.filter(o => o.lat != null && o.lng != null);
 
@@ -38,16 +45,20 @@ export function createOutbreakMarkersLayer(
     data,
     getPosition: (d) => [d.lng!, d.lat!],
     getRadius: (d) => {
-      // Enlarge highlighted province markers slightly
       const base = ALERT_RADII[d.alertLevel] ?? 10;
+      const isOtherDay = selectedDate && dayOf(d.publishedAt) !== selectedDate;
+      if (isOtherDay) return base * 0.55; // past days: smaller
       if (highlightedProvince && d.province === highlightedProvince) return base * 1.3;
       return base;
     },
     getFillColor: (d) => {
       const color = ALERT_COLORS[d.alertLevel] ?? [150, 150, 150, 150];
-      // Dim markers outside highlighted province
+      const isOtherDay = selectedDate && dayOf(d.publishedAt) !== selectedDate;
+      // Past days: muted gray
+      if (isOtherDay) return [160, 160, 170, 70];
+      // Province dimming (within selected day)
       if (highlightedProvince && d.province !== highlightedProvince) {
-        return [color[0], color[1], color[2], 60]; // low alpha = dimmed
+        return [color[0], color[1], color[2], 60];
       }
       return color;
     },
@@ -55,19 +66,20 @@ export function createOutbreakMarkersLayer(
     onClick: (info) => {
       if (info.object && onClick) onClick(info.object);
     },
-    radiusMinPixels: 8,
+    radiusMinPixels: 5,
     radiusMaxPixels: 40,
     stroked: true,
     getLineColor: (d) => {
-      // White stroke for highlighted province
+      const isOtherDay = selectedDate && dayOf(d.publishedAt) !== selectedDate;
+      if (isOtherDay) return [160, 160, 170, 40];
       if (highlightedProvince && d.province === highlightedProvince) return [255, 255, 255, 200];
       return [0, 0, 0, 40];
     },
     lineWidthMinPixels: 1,
     updateTriggers: {
-      getFillColor:  [highlightedProvince],
-      getRadius:     [highlightedProvince],
-      getLineColor:  [highlightedProvince],
+      getFillColor:  [highlightedProvince, selectedDate],
+      getRadius:     [highlightedProvince, selectedDate],
+      getLineColor:  [highlightedProvince, selectedDate],
     },
   });
 }
