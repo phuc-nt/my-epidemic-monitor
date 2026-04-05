@@ -6,12 +6,17 @@
 
 ## Tổng quan
 
-Epidemic Monitor là ứng dụng web theo dõi dịch bệnh theo thời gian thực, hiển thị dữ liệu trên bản đồ tương tác và cung cấp AI Assistant để phân tích. Hệ thống được thiết kế theo nguyên tắc **no-framework** (Vanilla TypeScript) để tránh vendor lock-in và giữ bundle size nhỏ.
+Epidemic Monitor là Vercel web app (display-only) theo dõi dịch bệnh Việt Nam theo thời gian thực. Không chạy pipeline; dữ liệu từ 2 nguồn độc lập:
+1. **Quốc tế**: WHO DON API (server-side Vercel)
+2. **Việt Nam hotspot**: FastAPI server trên Mac Mini (port 8742, qua Cloudflare tunnel)
+
+Hệ thống được thiết kế **no-framework** (Vanilla TypeScript) để tránh vendor lock-in, giữ bundle size nhỏ, và tập trung vào display + AI analysis.
 
 **Nguyên tắc thiết kế cốt lõi:**
-- **Edge-first**: Logic xử lý dữ liệu chạy trên server gần người dùng nhất (Vercel Edge Functions)
-- **Cache tầng đôi**: Server cache in-memory + client cache localStorage → giảm tải API bên thứ ba
-- **Modular panels**: Mỗi panel là một widget độc lập, tự quản lý dữ liệu và rendering
+- **Edge-first**: WHO/VN RSS parse trên Vercel Edge Functions
+- **External pipeline**: Mac Mini (`openclaw` repo) crawl báo VN + YouTube + Facebook, extract LLM, SQLite store, API expose
+- **Cache tầng đôi**: Server cache in-memory + client cache localStorage
+- **Modular panels**: Mỗi panel độc lập, tự quản lý dữ liệu
 
 ---
 
@@ -19,113 +24,104 @@ Epidemic Monitor là ứng dụng web theo dõi dịch bệnh theo thời gian t
 
 ```mermaid
 graph TB
-    subgraph External["Nguồn dữ liệu bên ngoài"]
-        WHO["WHO RSS Feed"]
-        OWID["Our World In Data CSV"]
-        OM["Open-Meteo API"]
-        LLM_P["LLM Providers<br/>(OpenRouter / Ollama / MLX)"]
+    subgraph External["Nguồn dữ liệu"]
+        WHO["WHO DON API"]
+        MM["Mac Mini Pipeline<br/>(openclaw)"]
+        OWID["OWID CSV"]
+        OM["Open-Meteo"]
+        LLM_P["LLM Providers"]
     end
 
-    subgraph Edge["Vercel Edge Functions (api/health/v1/)"]
-        EF1["outbreaks"]
-        EF2["stats"]
-        EF3["owid"]
-        EF4["countries"]
-        EF5["news"]
-        EF6["climate"]
+    subgraph Pipeline["Mac Mini (6h cron)"]
+        WEB["Web crawl<br/>(Google SERP)"]
+        YT["YouTube<br/>(transcript)"]
+        FB["Facebook<br/>(Playwright)"]
+        EXT["Extract<br/>(M2.7)"]
+        DB["SQLite<br/>epidemic-monitor.db"]
+        API["FastAPI<br/>port 8742"]
     end
 
-    subgraph Client["Client (Browser)"]
-        subgraph Services["Services Layer"]
+    subgraph Edge["Vercel (api/health/v1/)"]
+        EF_OUT["outbreaks<br/>(merge WHO + pipeline)"]
+        EF_STATS["stats"]
+        EF_NEWS["news"]
+        EF_CLIMATE["climate"]
+    end
+
+    subgraph Client["Browser (Vercel app)"]
+        subgraph Services["Services"]
             DS["DataService"]
             LS["LLMService"]
-            CS["ClimateService"]
-            CR["CaseReportService"]
         end
 
-        subgraph AppLayer["App Layer"]
-            AC["AppContext (Global State)"]
-            INIT["app-init.ts (Bootstrap)"]
-            EB["Event Bus (on/emit)"]
-        end
-
-        subgraph UI["UI Layer"]
-            MAP["MapShell<br/>(MapLibre + deck.gl)"]
-            P1["OutbreakPanel"]
-            P2["StatsPanel"]
-            P3["ChatPanel"]
-            P4["ClimatePanel"]
-            P5["...5 more panels"]
+        subgraph UI["UI Panels"]
+            MAP["Map<br/>(deck.gl)"]
+            PANELS["Outbreak / Stats / Chat / Climate"]
         end
     end
 
-    WHO --> EF1
-    WHO --> EF5
-    OWID --> EF3
-    OM --> EF6
-    LLM_P -.->|SSE Stream| LS
-
-    EF1 --> DS
-    EF2 --> DS
-    EF3 --> DS
-    EF4 --> DS
-    EF5 --> DS
-    EF6 --> CS
-
-    DS --> AC
-    CS --> AC
-    AC --> INIT
-    INIT --> P1 & P2 & P3 & P4 & P5
-    INIT --> MAP
-    EB <-->|events| P1 & P2 & P3 & MAP
-    LS --> P3
+    WHO --> EF_OUT
+    WEB --> EXT
+    YT --> EXT
+    FB --> EXT
+    EXT --> DB
+    DB --> API
+    API --> EF_OUT
+    EF_OUT --> DS
+    OM --> EF_CLIMATE
+    LLM_P -.->|SSE| LS
+    DS --> PANELS
+    DS --> MAP
+    LS --> PANELS
 ```
 
-**Tại sao Vanilla TypeScript?** Không cần React/Vue cho một SPA có UI tương đối tĩnh — tránh overhead của virtual DOM, bundle nhỏ hơn ~60%, và không bị ràng buộc bởi framework lifecycle.
+**Tại sao Vanilla TypeScript?** Không cần React/Vue — app focus vào display + analysis, không cần component complexity. Bundle nhỏ ~60% hơn framework-based.
 
-**Tại sao Vercel Edge Functions?** Chạy tại CDN edge nodes, latency thấp hơn serverless thông thường. Quan trọng hơn: parse RSS/CSV phức tạp không nên chạy trên browser vì tốn CPU và gây CORS issues.
+**Tại sao Vercel Edge Functions?** Merge WHO-DON + Mac Mini hotspots tại CDN edge, latency thấp. Vercel Cron (future) có thể poll Mac Mini 1h/lần.
+
+**Tại sao Mac Mini pipeline riêng?** Vietnamese news crawl + extraction phức tạp, cần persistent browser (Playwright), SQLite store. Chạy launchd cron 6h, expose qua FastAPI + Cloudflare tunnel. Vercel chỉ call API, không crawl.
 
 ---
 
-## Real Data Pipeline (105 + 50 items, NO sample data)
+## Real Data Pipeline
 
-**Sources:**
-- Outbreaks (105): WHO-DON (30) + VietnamNet (46) + Dân Trí (15) + VnExpress (7) + Tuổi Trẻ (5) + Thanh Niên (2)
-- News (50): VnExpress (24) + Tuổi Trẻ (12) + Thanh Niên (8) + VietnamNet (6)
-- Climate: Open-Meteo 14-day forecast, 8 VN provinces
+### Tier 1: WHO-DON (Global, Vercel)
+- **URL**: WHO Disease Outbreak News REST API
+- **Processing**: Vercel Edge → extract disease, countries, severity
+- **Items**: ~30-50 global items (low VN overlap)
+- **Purpose**: Background signal, international context
 
-**Processing Stages:**
+### Tier 2: Mac Mini Hotspots (Vietnamese, FastAPI)
+- **Source**: Crawl web (Google SERP), YouTube (transcript), Facebook (Playwright)
+- **Keywords**: 20+ disease names in Vietnamese
+- **Pipeline**: 
+  ```
+  Daily sources → Google SERP 3-day window → crawl4ai markdown
+            ↓
+  YouTube RSS (WHO/VTV24/CDC) → get-transcript.sh → MLX Whisper
+            ↓
+  Facebook pages + search → Playwright+Gemini Vision
+            ↓
+  extract-m27.py (MiniMax M2.7) → province/district/cases/deaths
+            ↓
+  db-store.py: validate (63 provinces), dedup (Jaccard 0.6), confidence ≥0.5
+            ↓
+  SQLite: outbreak_items + hotspots VIEW
+            ↓
+  db-api-server.py FastAPI → /hotspots?day=YYYY-MM-DD
+            ↓
+  Cloudflare Tunnel → EPIDEMIC_API_URL
+  ```
+- **Current**: 42 items across web/youtube/facebook (2026-04-05 snapshot)
+- **Quality**: cases_type (cumulative vs outbreak), confidence 0.5-0.95
 
-```
-Stage 1: Fetch & Parse (server)
-  RSS Feeds + WHO-DON REST → dev middleware (api/health/v1/*.ts)
-  ├─ Disease keyword matching (20 regex: sốt xuất huyết, covid, etc.)
-  ├─ Province extraction (64 VN provinces + diacritics norm)
-  ├─ Alert level heuristics (keywords: bùng phát, cảnh báo → escalate)
-  └─ Source badge assignment
+### Tier 3: Client-side Processing (Browser)
+- **Disease normalization**: 67 aliases EN+VN
+- **Dedup**: Jaccard 0.4 (news), 0.6 (outbreaks from Mac Mini)
+- **IndexedDB**: 30-day snapshots for trend + historical
+- **UI panels**: Map, stats, chat, climate alerts
 
-Stage 2: Client-side Enrichment (llm-data-pipeline.ts)
-  ├─ Disease name normalization (67 aliases EN+VN)
-  ├─ Outbreak dedup (Jaccard title similarity, 0.4 threshold)
-  ├─ Full article content crawl (crawl4ai JS-render or simple fetch)
-  ├─ LLM entity extraction (cases, deaths, ward/district, dates)
-  └─ News dedup Tier 1 (Jaccard) + Tier 2 (LLM when ambiguous)
-
-Stage 3: UI Rendering + Storage
-  ├─ IndexedDB snapshots (5-min auto-refresh, 30-day retention)
-  ├─ DiseaseOutbreaksPanel + NewsFeedPanel updates
-  ├─ Map layer markers + heatmap + early warning zones
-  └─ Breaking news banner (ALERT outbreaks)
-```
-
-**Known Gaps (REAL, not planned):**
-- **Cases = 0%**: RSS summaries lack case counts; crawl4ai + LLM background extraction runs but many articles are health guides
-- **District = 0%**: Ward DB exists (100+ wards HN/ĐN/TPHCM) but LLM enrichment needs processing time
-- **VietnamNet noise**: 14 "Lao" items, many health education not TB outbreaks
-- **URL expiry**: VN news URLs rotate within 1-2 days (404/redirect)
-- **WHO/CDC timeout**: International sources timeout in dev middleware (works on Vercel Edge)
-- **Climate gaps**: Only 5/8 provinces returning data (3 may timeout)
-- **Chat quality**: Ollama gemma3:4b hallucinates; minimax m2.7 accurate
+**Architecture Note**: Display-only — data fetching delegated to Mac Mini + Vercel Edge. Browser never crawls or extracts.
 
 ---
 

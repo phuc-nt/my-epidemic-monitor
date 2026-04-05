@@ -138,15 +138,48 @@ UI Panels (DiseaseOutbreaksPanel, NewsFeedPanel, etc.)
 
 ---
 
+## Future Data Sources (P1+)
+
+### disease.sh — COVID & Flu
+- **URL**: `https://disease.sh/v3/covid-19/countries/Vietnam`
+- **Format**: REST JSON (free, no auth, no rate limit)
+- **Data**: Global COVID/flu stats per country, historical last 30 days
+- **Implementation**: Add `api/health/v1/disease-sh.ts` → fetch Vietnam stats → merge into StatsPanel
+- **Effort**: 2 hours
+
+### WHO GHO OData — 1000+ Health Indicators
+- **URL**: `https://ghoapi.azureedge.net/api/{INDICATOR_CODE}?$filter=SpatialDim eq 'VNM'`
+- **Format**: OData JSON (free)
+- **Data**: TB incidence, malaria, HIV, maternal mortality per country (quarterly/annual)
+- **Useful indicators**: `WHS3_40` (TB), `WHS3_41` (Malaria), `MDG_0000000003` (Maternal mortality)
+- **Implementation**: Background data for TrendChartPanel (long-term historical trends)
+- **Effort**: 4 hours
+
+### ProMED-mail — Outbreak Alerts (Mekong Region)
+- **URL**: ProMED RSS feed `https://promedmail.org/promed-rss/` (free) or API (subscription)
+- **Format**: RSS or JSON
+- **Data**: Early warning system for all infectious diseases (Mekong Basin: VN, Lao, Cambodia, Thailand, Myanmar)
+- **Freshness**: Real-time, ~8 reports/day
+- **Implementation**: Add to RSS sources with ProMED dedup logic
+- **Effort**: 2 hours (RSS only)
+
+### HealthMap — Automated Multi-source Aggregation
+- **URL**: `https://www.healthmap.org/`
+- **Format**: Web-based (requires crawl4ai scrape)
+- **Data**: Google News + ProMED + official alerts + social media, Vietnam data
+- **Implementation**: Schedule crawl4ai, M2.7 extract Vietnam mentions
+- **Effort**: 4 hours
+
+---
+
 ## Known Issues & Gaps
 
 | Issue | Impact | Root Cause | Workaround |
 |-------|--------|-----------|-----------|
-| **Cases = 0%** | Case counts missing | RSS summaries lack case numbers; crawl4ai + LLM background extraction still running | Many articles are health guides not outbreak reports |
+| **Cases = 0%** | Case counts missing | RSS summaries lack; Mac Mini pipeline extracts but articles often health guides | See Mac Mini pipeline status (openclaw repo) |
 | **District = 0%** | Ward extraction fails | Ward DB exists but LLM enrichment needs processing time | Manual verification in DB entries |
 | **VietnamNet "Lao"** | 14 noisy items | Many health education vs TB outbreaks | Filter by keywords or mark category |
 | **News URLs expire** | 404 links within 1-2 days | Vietnamese news sites rotate URLs | Cache article content on first fetch |
-| **WHO/CDC timeout** | International signals missing in dev | Dev middleware rate-limits or times out | Works on production (Vercel Edge) |
 | **Thanh Niên entities** | HTML entities not decoded | RSS encoding issue | Manual entity decode in parser |
 | **Climate 3/8 timeout** | Missing provinces | API latency or timeout | Fallback to available provinces |
 | **Chat quality** | Hallucinations with Ollama | Model capability (gemma3:4b light) | Use minimax m2.7 via OpenRouter for accuracy |

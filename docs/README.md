@@ -1,53 +1,40 @@
 # docs/
 
-Project knowledge base — tài liệu sản phẩm, kỹ thuật, nhật ký, nghiên cứu.
+Project knowledge base — tài liệu sản phẩm, kỹ thuật, nhật ký.
 
 ## Cấu trúc
 
 ```
 docs/
-├── product/                          # Cho users + sponsors
-│   └── product-introduction.md       # Giới thiệu sản phẩm, vấn đề & giải pháp
+├── product/
+│   └── product-introduction.md    # Giới thiệu, vấn đề, giải pháp
 │
-├── technical/                        # Cho developers
-│   ├── system-architecture.md        # Kiến trúc, luồng dữ liệu, diagrams
-│   └── data-sources-catalog.md       # 10 data sources chi tiết
+├── technical/
+│   ├── system-architecture.md     # Dual-source arch: WHO + Mac Mini
+│   ├── data-sources-catalog.md    # Live sources (WHO, VN RSS, YouTube)
+│   ├── ai-features-guide.md       # LLM providers, chat, enrichment
+│   └── development-roadmap.md     # P0 completed, P1+ backlog
 │
-├── devlogs/                          # Nhật ký phát triển (theo ngày)
-│   ├── devlog-260404-product-build.md        # Quá trình build MVP + P0
-│   └── devlog-260404-agent-kit-best-practices.md  # MK patterns & lessons
-│
-├── research/                         # Nghiên cứu thị trường
-│   └── research-260404-epidemic-products-and-needs.md
-│
-├── solutions/                        # Giải pháp đề xuất (từ external research)
-│   ├── data-enrichment-pipeline.md
-│   └── international-data-sources.md
-│
-├── pipelines-experiment/             # [NEW] Experimental ingestion pipelines
-│   ├── README.md                     # Entry point: web+YT+FB keyword pipelines
-│   ├── architecture-and-results.md   # Iterations v1→v3, 11 items tested
-│   ├── tools-stack-reference.md      # Crawl4AI, M2.7, MLX Whisper, YouTube API
-│   ├── integration-guide.md          # How to integrate into my-epidemic-monitor
-│   ├── scripts/                      # Source code (4 pipelines + extractor)
-│   └── sample-outputs/               # Real JSON outputs
-│
-└── development-roadmap.md            # Roadmap: completed + backlog
+└── devlogs/
+    ├── devlog-260404-product-build.md          # MVP + P0 build
+    └── devlog-260404-agent-kit-best-practices.md  # MK patterns
 ```
 
-## Naming Convention
-```
-product/product-{topic}.md            # Tài liệu sản phẩm
-technical/{topic}.md                  # Tài liệu kỹ thuật
-devlogs/devlog-{YYMMDD}-{topic}.md   # Nhật ký theo ngày
-research/research-{YYMMDD}-{topic}.md # Nghiên cứu
-```
+**Removed (consolidated to technical/):**
+- `research/` — archived (one-off research, no longer actionable)
+- `solutions/` — merged to data-sources-catalog.md
+- `pipelines-experiment/` — reference only; production pipeline on Mac Mini (openclaw repo)
 
-## Phân biệt docs/ vs plans/
+## Architecture Summary
 
-| | docs/ | plans/ |
-|---|---|---|
-| **Audience** | Users, sponsors, devs | MK agents |
-| **Timing** | Sau khi build | Trước/trong khi build |
-| **Content** | Knowledge, architecture, research | Specs, phases, reports |
-| **Maintain** | User yêu cầu cập nhật | Agents tự tạo |
+**This repo** (Vercel): Display-only web app
+- Fetch WHO-DON via Vercel Edge Functions
+- Fetch Mac Mini hotspots via Cloudflare tunnel
+- Merge data, render map + panels, AI chat
+
+**Mac Mini** (external `openclaw` repo): Data collection
+- Crawl Vietnamese news (6h cron, launchd)
+- Extract via MiniMax M2.7, store SQLite
+- Expose `/hotspots?day=YYYY-MM-DD` FastAPI
+
+See `technical/system-architecture.md` for detailed diagrams.
