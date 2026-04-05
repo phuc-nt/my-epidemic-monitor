@@ -4,9 +4,9 @@
  * Adds lat/lng from VN_PROVINCES lookup so map markers render correctly.
  * Returns empty array gracefully if Mac Mini is offline.
  */
-import { jsonResponse, errorResponse } from '../../_cors';
+import { jsonResponse } from '../../_cors';
 import { getCached, setCached } from '../../_cache';
-import { diseaseLabel } from '@/components/case-report-panel-data';
+import { diseaseLabel } from '../../_disease-labels';
 
 export const config = { runtime: 'edge' };
 
