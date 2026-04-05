@@ -67,9 +67,11 @@ export async function initApp(): Promise<void> {
     const banner         = new BreakingNewsBanner();
 
     // 4. Mount panels into tabbed groups
+    // Dashboard: focused on active outbreak monitoring (outbreaks + climate risk)
+    // Analysis:  deeper investigation tools (stats, news, signals, trends, etc.)
     const tabGroups: Record<string, { label: string; panels: HTMLElement[] }> = {
-      dashboard: { label: 'Dashboard', panels: [outbreaksPanel.el, climatePanel.el, statsPanel.el, newsPanel.el] },
-      analysis:  { label: 'Analysis',  panels: [signalsPanel.el, provinceDive.el, trendPanel.el, countryPanel.el] },
+      dashboard: { label: 'Dashboard', panels: [outbreaksPanel.el, climatePanel.el] },
+      analysis:  { label: 'Analysis',  panels: [statsPanel.el, newsPanel.el, signalsPanel.el, provinceDive.el, trendPanel.el, countryPanel.el] },
       tools:     { label: 'Tools',     panels: [caseReportPanel.el, chatPanel.el] },
     };
 
@@ -77,18 +79,21 @@ export async function initApp(): Promise<void> {
     const tabBar = h('div', { className: 'panel-tab-bar' });
     let activeTab = 'dashboard';
 
+    // Alert summary strip — only visible in Dashboard tab, shows counts per level
+    const summaryStrip = h('div', { className: 'alert-summary-strip' });
+
     function showTab(tabId: string): void {
       activeTab = tabId;
-      // Update tab buttons
       for (const btn of tabBar.querySelectorAll('.panel-tab-btn')) {
         btn.classList.toggle('panel-tab-btn--active', (btn as HTMLElement).dataset['tab'] === tabId);
       }
-      // Show/hide panel groups
       for (const [id, group] of Object.entries(tabGroups)) {
         for (const el of group.panels) {
           el.style.display = id === tabId ? '' : 'none';
         }
       }
+      // Summary strip only relevant on Dashboard
+      summaryStrip.style.display = tabId === 'dashboard' ? '' : 'none';
     }
 
     for (const [id, group] of Object.entries(tabGroups)) {
@@ -118,22 +123,68 @@ export async function initApp(): Promise<void> {
       return d.toISOString().split('T')[0];
     });
 
+    const DOW_VN = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
     const tlBtns = new Map<string, HTMLElement>();
     for (const day of timelineDays) {
       const d = new Date(day + 'T00:00:00');
-      const label = day === todayStr
-        ? 'Hôm nay'
-        : `${d.getDate()}/${d.getMonth() + 1}`;
+      const isToday = day === todayStr;
+      const dowLabel  = isToday ? 'HN' : DOW_VN[d.getDay()];
+      const dateLabel = isToday ? 'Hôm nay' : `${d.getDate()}/${d.getMonth() + 1}`;
       const btn = h('button', {
-        className: `timeline-day-btn${day === todayStr ? ' timeline-day-btn--active' : ''}`,
+        className: `timeline-day-btn${isToday ? ' timeline-day-btn--active' : ''}`,
         dataset: { date: day },
         title: day,
-      }, label);
+      },
+        h('span', { className: 'tl-dow' }, dowLabel),
+        h('span', { className: 'tl-date' }, dateLabel),
+        h('span', { className: 'tl-count', style: 'display:none' }, ''),
+      );
       btn.addEventListener('click', () => emit('day-selected', day));
       tlBtns.set(day, btn);
       timelineBar.appendChild(btn);
     }
     panelsGrid.insertBefore(timelineBar, tabBar.nextSibling);
+
+    // Insert summary strip after the timeline bar
+    panelsGrid.insertBefore(summaryStrip, timelineBar.nextSibling);
+
+    /** Update count badges on each timeline day button after data loads. */
+    function updateTimelineCounts(allOutbreaks: DiseaseOutbreakItem[]): void {
+      for (const [day, btn] of tlBtns) {
+        const count = allOutbreaks.filter(o =>
+          new Date(o.publishedAt).toISOString().split('T')[0] === day
+        ).length;
+        const badge = btn.querySelector('.tl-count') as HTMLElement | null;
+        if (badge) {
+          badge.textContent = count > 0 ? String(count) : '';
+          badge.style.display = count > 0 ? '' : 'none';
+        }
+      }
+    }
+
+    /** Rebuild the alert summary strip for a given date's outbreaks. */
+    function updateSummaryStrip(allOutbreaks: DiseaseOutbreakItem[], date: string): void {
+      const items = allOutbreaks.filter(o =>
+        new Date(o.publishedAt).toISOString().split('T')[0] === date
+      );
+      const alertCnt   = items.filter(o => o.alertLevel === 'alert').length;
+      const warnCnt    = items.filter(o => o.alertLevel === 'warning').length;
+      const watchCnt   = items.filter(o => o.alertLevel === 'watch').length;
+
+      summaryStrip.textContent = '';
+      const pill = (count: number, label: string, cls: string) =>
+        h('div', { className: `summary-pill ${cls}` },
+          h('span', { className: 'summary-pill-count' }, String(count)),
+          h('span', { className: 'summary-pill-label' }, label),
+        );
+      summaryStrip.appendChild(pill(alertCnt, 'Alert', 'summary-pill--alert'));
+      summaryStrip.appendChild(pill(warnCnt,  'Warning', 'summary-pill--warning'));
+      summaryStrip.appendChild(pill(watchCnt, 'Watch', 'summary-pill--watch'));
+      summaryStrip.appendChild(
+        h('div', { className: 'summary-total' }, `${items.length} điểm nóng`),
+      );
+    }
 
     // Mount all panels (visibility controlled by showTab)
     for (const group of Object.values(tabGroups)) {
@@ -207,6 +258,10 @@ export async function initApp(): Promise<void> {
 
       outbreaksPanel.updateData(outbreaks);
       newsPanel.updateData(news);
+
+      // Update timeline count badges + summary strip with latest data
+      updateTimelineCounts(outbreaks);
+      updateSummaryStrip(outbreaks, _selectedDate);
 
       // Cross-source signal detection
       const signals = detectCrossSourceSignals(outbreaks, news);
@@ -349,16 +404,16 @@ export async function initApp(): Promise<void> {
       outbreaksPanel.updateData(filtered);
     });
 
-    // Day selected on timeline → filter panel to that day + dim map markers for other days
+    // Day selected on timeline → filter panel + dim past-day map markers + refresh summary
     on('day-selected', (data) => {
       const date = data as string;
       _selectedDate = date;
-      // Update timeline button styles
       for (const [day, btn] of tlBtns) {
         btn.classList.toggle('timeline-day-btn--active', day === date);
       }
       setSelectedDate(date);
       outbreaksPanel.filterByDate(date);
+      updateSummaryStrip(ctx.outbreaks, date);
     });
 
     // Default: filter to today on load

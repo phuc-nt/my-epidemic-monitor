@@ -295,18 +295,17 @@ html, body {
 
 .outbreak-list { display: flex; flex-direction: column; gap: 6px; }
 .outbreak-row {
-  padding: 8px; border-radius: var(--radius); background: var(--surface2);
+  padding: 6px 8px; border-radius: var(--radius); background: var(--surface2);
   border-left: 3px solid var(--border); cursor: pointer; transition: background 0.1s;
 }
 .outbreak-row:hover { background: var(--border); }
 .outbreak-row--alert { border-left-color: var(--alert); }
 .outbreak-row--warning { border-left-color: var(--warning); }
 .outbreak-row--watch { border-left-color: var(--watch); }
-.outbreak-row-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.outbreak-row-title { font-weight: 600; font-size: 13px; }
-.outbreak-row-meta { font-size: 11px; color: var(--text-muted); }
-.outbreak-row-summary { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); line-height: 1.4; }
-.outbreak-row-link { font-size: 11px; color: var(--accent); text-decoration: none; }
+.outbreak-row-header { display: flex; align-items: center; gap: 6px; }
+.outbreak-row-title { font-weight: 600; font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outbreak-row-meta { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.outbreak-row-link { font-size: 12px; color: var(--accent); text-decoration: none; flex-shrink: 0; padding: 0 2px; }
 .outbreak-row-link:hover { text-decoration: underline; }
 .outbreak-empty { color: var(--text-muted); font-size: 12px; text-align: center; padding: 12px; }
 .outbreak-show-more {
@@ -509,32 +508,106 @@ html, body {
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
   scrollbar-width: none;
+  flex-shrink: 0;
 }
 .timeline-bar::-webkit-scrollbar { display: none; }
 
 .timeline-day-btn {
   flex: 1;
-  min-width: 48px;
-  padding: 4px 6px;
-  font-size: 11px;
-  font-weight: 500;
+  min-width: 52px;
+  padding: 5px 4px 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface2);
   color: var(--text-muted);
   cursor: pointer;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.timeline-day-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
+.timeline-day-btn:hover { border-color: var(--accent); color: var(--accent); }
 .timeline-day-btn--active {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+/* Day-of-week label (CN / T2 / T3 …) */
+.tl-dow {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+  line-height: 1;
+}
+/* Date label (Hôm nay / 30/3 …) */
+.tl-date {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+/* Count badge — hidden until data loads */
+.tl-count {
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0 4px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+.timeline-day-btn--active .tl-count { background: rgba(255,255,255,0.25); color: #fff; }
+
+/* ── Alert summary strip ─────────────────────────────────── */
+
+.alert-summary-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.summary-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  flex: 1;
+  min-width: 0;
+}
+.summary-pill--alert   { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.2); }
+.summary-pill--warning { background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.2); }
+.summary-pill--watch   { background: rgba(163,163,18,0.08); border: 1px solid rgba(163,163,18,0.2); }
+.summary-pill-count {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.summary-pill--alert   .summary-pill-count { color: var(--alert); }
+.summary-pill--warning .summary-pill-count { color: var(--warning); }
+.summary-pill--watch   .summary-pill-count { color: var(--watch); }
+.summary-pill-label {
+  font-size: 9px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.summary-total {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Scrollbar ───────────────────────────────────────────── */

@@ -245,24 +245,27 @@ export class DiseaseOutbreaksPanel extends Panel {
     const escalated = this._escalations.has(outbreakKey);
 
     const title = h('span', { className: 'outbreak-row-title' }, escapeHtml(diseaseLabel(item.disease)));
+
+    // Province shown when available and differs from country
+    const provincePart: (string | HTMLElement)[] =
+      item.province && item.province !== item.country
+        ? [' · ', escapeHtml(item.province)]
+        : [];
+
     const meta = h('span', { className: 'outbreak-row-meta' },
-      escapeHtml(item.country), ' · ', relativeTime(item.publishedAt),
+      escapeHtml(item.country), ...provincePart, ' · ', relativeTime(item.publishedAt),
       ...(item.source ? [' · ', h('span', { className: 'outbreak-source-badge' }, item.source)] : []),
-      ...(escalated ? [h('span', { className: 'escalation-badge' }, '⬆ ESCALATED')] : []),
-    );
-    const summary = h('p', { className: 'outbreak-row-summary' },
-      escapeHtml(item.summary.length > 100 ? `${item.summary.slice(0, 100)}…` : item.summary),
+      ...(escalated ? [' ', h('span', { className: 'escalation-badge' }, '⬆')] : []),
     );
 
     const safeUrl = sanitizeUrl(item.url);
     const link = safeUrl
-      ? h('a', { href: safeUrl, target: '_blank', rel: 'noopener noreferrer', className: 'outbreak-row-link' }, 'Details →')
-      : h('span', {});
+      ? h('a', { href: safeUrl, target: '_blank', rel: 'noopener noreferrer', className: 'outbreak-row-link' }, '↗')
+      : null;
 
     const row = h('div', { className: `outbreak-row outbreak-row--${item.alertLevel}` },
-      h('div', { className: 'outbreak-row-header' }, badge, title, meta),
-      summary,
-      link,
+      h('div', { className: 'outbreak-row-header' }, badge, title, ...(link ? [link] : [])),
+      meta,
     );
 
     row.addEventListener('click', (e) => {
