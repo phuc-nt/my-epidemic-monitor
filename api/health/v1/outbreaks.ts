@@ -5,6 +5,7 @@
  */
 import { jsonResponse, errorResponse } from '../../_cors';
 import { getCached, setCached } from '../../_cache';
+import { diseaseLabel } from '@/components/case-report-panel-data';
 
 export const config = { runtime: 'edge' };
 
@@ -369,12 +370,12 @@ async function fetchPipelineHotspots(): Promise<OutbreakResult[]> {
   if (!res.ok) throw new Error(`Pipeline API ${res.status}`);
   const data: { hotspots: Record<string, unknown>[] } = await res.json();
   return (data.hotspots ?? []).map(h => ({
-    id: hashString(`pipeline:${h.disease}:${h.province}:${h.day}`),
+    id: `pipeline:${h.disease}:${h.province}:${h.day}`,
     disease: String(h.disease ?? ''),
     country: 'Vietnam',
     countryCode: 'VN',
     alertLevel: (h.peak_alert as 'alert' | 'warning' | 'watch') ?? 'watch',
-    title: `${h.disease} tại ${h.province}`,
+    title: `${diseaseLabel(String(h.disease ?? ''))} tại ${h.province}`,
     summary: `${h.article_count} nguồn (${h.source_types}). Số ca: ${h.peak_cases ?? 'N/A'}`,
     url: String((h.source_urls as string)?.split('|')[0] ?? ''),
     publishedAt: new Date(String(h.day)).getTime(),
