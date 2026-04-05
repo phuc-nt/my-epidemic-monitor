@@ -4,8 +4,8 @@
 
 Tích hợp data pipeline từ Mac Mini vào Vercel app. Định vị lại sản phẩm: không cạnh tranh với thống kê nhà nước, chỉ quét news đa nguồn → tổng hợp điểm nóng theo ngày (mỗi 6h).
 
-**Commits hôm nay**: 5 commits  
-**Thay đổi chính**: pipeline integration end-to-end, Vietnamese disease names, docs restructure
+**Commits hôm nay**: 11 commits  
+**Thay đổi chính**: pipeline integration, Vietnamese names, docs restructure, bidirectional map-list, Mac Mini as sole source
 
 ---
 
@@ -95,6 +95,48 @@ UI render raw slug → user thấy tiếng Anh.
 
 3. `app-init.ts` — dùng `diseaseLabel(top.disease)` trong breaking news banner
 
+### 16:00 — Bidirectional Map-List Linking
+
+Map marker click → filter outbreak list theo province (chip hiển thị, có nút ×).  
+List row click → map flyTo + highlight province markers (dim các markers khác).
+
+Sự kiện mới:
+- `map-marker-clicked` (map→list, tránh vòng lặp với `outbreak-selected`)
+- `province-filter-changed` (chip clear → sync map highlight)
+
+deck.gl `updateTriggers` cho reactive province highlight (alpha dim/enlarge).
+
+### 16:10 — Mac Mini Pipeline as Sole Source
+
+**Refactor lớn:** loại bỏ WHO DON + VN RSS khỏi `outbreaks.ts`.
+
+**Vấn đề trước:** `outbreaks.ts` 441 lines, merge WHO DON + 5 VN RSS feeds + pipeline.  
+**Sau:** 120 lines, chỉ gọi Mac Mini `/hotspots`.
+
+**Root cause Vercel build failure:** `@/` alias không resolve được trong Edge Function bundler.  
+Fix: tạo `api/_disease-labels.ts` (no `@/` import) thay vì import từ `src/`.
+
+**`news.ts`:** gọi Mac Mini `/news` primary, fallback 3 RSS nếu offline.
+
+### 16:30 — Phân chia nhiệm vụ Mac Mini vs Vercel
+
+Tạo `docs/technical/data-source-division.md`:
+- Bảng phân chia rõ ai làm gì
+- Spec endpoint `/news` cho Mac Mini team implement
+- Contract disease slug + province name format
+
+### 17:10 — Vietnamese Province Names Fix
+
+Pipeline trả tên tiếng Việt có dấu (`Đắk Lắk`, `TP.HCM`...).  
+Lookup table `VN_PROVINCES` chỉ có EN → lat/lng về Vietnam centroid.
+
+Fix: thêm Vietnamese names + regional terms (`Toàn quốc`, `phía Nam`, `ĐBSCL`).
+
+**Kết quả sau fix:**
+- `Đắk Lắk` → `lat=12.71, lng=108.24` ✅
+- `TP.HCM` → `lat=10.82, lng=106.63` ✅
+- `Toàn quốc` → Vietnam centroid ✅
+
 ### 15:45 — Docs Restructure
 
 Xóa các thư mục không còn cần thiết:
@@ -122,30 +164,23 @@ docs/
 
 ---
 
-## Kiến trúc sau tích hợp
+## Kiến trúc cuối ngày
 
 ```
 ┌─────────────────────────────────────────────┐
 │                Mac Mini                      │
-│  openclaw epidemic-monitor-pipeline (6h)    │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ Crawlers │→ │ LLM Ext. │→ │  SQLite  │  │
-│  │ VnExpress│  │ disease/ │  │ hotspots │  │
-│  │ YT/Web/FB│  │ province │  │ table    │  │
-│  └──────────┘  └──────────┘  └─────────┘  │
-│                              ↓              │
-│                  db-api-server.py :8742     │
-│                  FastAPI, X-Api-Key auth    │
+│  epidemic-monitor-pipeline (6h cron)        │
+│  Crawl web/YT/FB → LLM extract → SQLite     │
+│  db-api-server.py :8742 (FastAPI)           │
+│  GET /hotspots?day=  GET /news?limit=       │
 └─────────────────┬───────────────────────────┘
                   │ Cloudflare Tunnel (HTTPS)
                   ↓
 ┌─────────────────────────────────────────────┐
-│             Vercel (my-epidemic-monitor)     │
-│  api/health/v1/outbreaks.ts                 │
-│  ├── fetchWhoDon()     → WHO DON RSS        │
-│  └── fetchPipelineHotspots() → Mac Mini API │
-│                ↓ merge                      │
-│  DiseaseOutbreakItem[] → UI                 │
+│  Vercel — thin proxy + cache                │
+│  outbreaks.ts → /hotspots (sole source)     │
+│  news.ts      → /news (fallback: RSS)       │
+│  climate.ts   → Open-Meteo                  │
 └─────────────────────────────────────────────┘
 ```
 
@@ -155,21 +190,24 @@ docs/
 
 | Metric | Giá trị |
 |--------|---------|
-| Data sources active | WHO DON + Mac Mini pipeline (6h cron) |
-| Pipeline items (live) | 6 hotspots (4 bệnh, Đắk Lắk + TP.HCM) |
-| Total outbreaks shown | ~104 (dev) / ~115 (prod) |
+| Data sources active | Mac Mini pipeline (sole source) + Open-Meteo |
+| Pipeline items (live) | 6 hotspots (4 bệnh: Thủy đậu/HFMD/Sởi/Quai bị) |
+| Total outbreaks shown | 6 (pipeline only, không còn WHO/RSS noise) |
+| outbreaks.ts lines | 441 → 120 (−73%) |
 | E2E tests | 29 pass |
-| TypeScript files | 58+ |
-| Git commits (total) | 31+ |
+| TypeScript files | 59+ |
+| Git commits (total) | 36+ |
 
 ---
 
 ## Quyết định thiết kế
 
 1. **Display-only repo** — không crawl, không LLM extract trong repo này. Data từ external pipeline.
-2. **Graceful degradation** — pipeline down → chỉ hiện WHO DON, không crash
-3. **English slugs trong DB** — normalize ở UI layer (`diseaseLabel()`), không sửa DB. Linh hoạt hơn cho future mapping.
-4. **Quick Cloudflare Tunnel** — đủ cho dev/demo. Persistent tunnel cần thiết khi có user thật.
+2. **Mac Mini = sole source** — loại bỏ WHO DON + RSS khỏi Vercel. Tín hiệu rõ hơn, không còn noise từ 5 RSS feeds.
+3. **Graceful degradation** — pipeline down → outbreaks trả `[]`, news fallback về RSS, không crash.
+4. **`@/` alias không work trong Vercel Edge bundler** — dùng relative imports trong `api/`, extract shared code ra `api/_*.ts`.
+5. **English slugs trong DB** — normalize ở UI layer (`diseaseLabel()`), không sửa DB.
+6. **Quick Cloudflare Tunnel** — đủ cho dev/demo. Persistent tunnel cần thiết khi có user thật.
 
 ---
 
@@ -177,4 +215,5 @@ docs/
 
 - [ ] Persistent Cloudflare tunnel — URL thay đổi khi restart. Cần `cloudflared tunnel create` với named tunnel.
 - [ ] Cập nhật `EPIDEMIC_API_URL` trên Vercel mỗi khi tunnel restart (tạm thời)
+- [ ] Mac Mini implement `GET /news?limit=50` → Vercel tự switch từ RSS fallback sang pipeline news
 - [ ] Thêm more news sources vào pipeline (hiện chủ yếu YouTube)
