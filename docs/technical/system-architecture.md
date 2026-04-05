@@ -14,7 +14,7 @@ Hệ thống được thiết kế **no-framework** (Vanilla TypeScript) để t
 
 **Nguyên tắc thiết kế cốt lõi:**
 - **Edge-first**: WHO/VN RSS parse trên Vercel Edge Functions
-- **External pipeline**: Mac Mini (`openclaw` repo) crawl báo VN + YouTube + Facebook, extract LLM, ghi SQLite → sync lên Cloudflare D1
+- **External pipeline**: Mac Mini (`epidemic-monitor-pipeline/` trong workspace) crawl báo VN + YouTube + Facebook, extract LLM, ghi SQLite → sync lên Cloudflare D1
 - **Cloud DB**: Cloudflare D1 (APAC) là nguồn dữ liệu VN duy nhất phía Vercel — không phụ thuộc Mac Mini uptime
 - **Cache tầng đôi**: Server cache in-memory + client cache localStorage
 - **Modular panels**: Mỗi panel độc lập, tự quản lý dữ liệu
@@ -271,14 +271,14 @@ Open-Meteo cung cấp forecast 14 ngày miễn phí. ClimateService tính risk s
 ┌─────────────────────────────────────────────────────────────────────┐
 │  BÊN A — Mac Mini (máy vật lý, chạy pipeline)                       │
 │                                                                       │
-│  [1] epidemic-monitor-pipeline  (openclaw repo)                       │
+│  [1] epidemic-monitor-pipeline/  (workspace: my-epidemic-monitor-workspace)                       │
 │      Chạy tự động mỗi 6h (launchd)                                   │
 │      Crawl web/YouTube/Facebook → LLM extract → ghi vào SQLite       │
 │                      ↓                                               │
 │  [2] SQLite (.db file)                                               │
 │      Lưu trữ outbreak_items + hotspots VIEW                          │
 │                      ↓                                               │
-│  [3] sync-to-d1.py                                                   │
+│  [3] scripts/sync-to-d1.py                                           │
 │      Sau mỗi pipeline run: đẩy data mới lên Cloudflare D1            │
 └──────────────────────────┬──────────────────────────────────────────┘
                            │  Cloudflare D1 API (write)
@@ -315,8 +315,11 @@ Open-Meteo cung cấp forecast 14 ngày miễn phí. ClimateService tính risk s
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
 ║  SỬA CODE [1] pipeline script           → restart launchd plist     ║
+║     (source: epidemic-monitor-pipeline/scripts/)                     ║
 ║  SỬA CODE [3] sync-to-d1.py            → restart launchd plist     ║
+║     (source: epidemic-monitor-pipeline/scripts/sync-to-d1.py)       ║
 ║  SỬA CODE [5] Worker (epidemic-api)     → wrangler deploy           ║
+║     (source: epidemic-monitor-pipeline/cloudflare-worker/)           ║
 ║                                                                      ║
 ║  SỬA CODE [6] outbreaks.ts (Edge fn)   → commit + push → auto      ║
 ║  SỬA CODE [7] UI components             → commit + push → auto      ║
