@@ -6,12 +6,19 @@
 // ── Disease list ──────────────────────────────────────────────────────────────
 
 export const DISEASES: { value: string; label: string }[] = [
-  { value: 'dengue',      label: 'Sốt xuất huyết (Dengue)' },
-  { value: 'hfmd',        label: 'Tay chân miệng (HFMD)' },
-  { value: 'covid19',     label: 'COVID-19' },
-  { value: 'influenza_a', label: 'Cúm A (Influenza A)' },
-  { value: 'measles',     label: 'Sởi (Measles)' },
-  { value: 'other',       label: 'Khác...' },
+  { value: 'dengue',          label: 'Sốt xuất huyết (Dengue)' },
+  { value: 'hfmd',            label: 'Tay chân miệng (HFMD)' },
+  { value: 'hand-foot-mouth', label: 'Tay chân miệng (HFMD)' },
+  { value: 'covid19',         label: 'COVID-19' },
+  { value: 'covid-19',        label: 'COVID-19' },
+  { value: 'influenza_a',     label: 'Cúm A (Influenza A)' },
+  { value: 'influenza',       label: 'Cúm (Influenza)' },
+  { value: 'measles',         label: 'Sởi' },
+  { value: 'chickenpox',      label: 'Thủy đậu' },
+  { value: 'mumps',           label: 'Quai bị' },
+  { value: 'rabies',          label: 'Dại (Rabies)' },
+  { value: 'meningitis',      label: 'Viêm màng não' },
+  { value: 'other',           label: 'Khác...' },
 ];
 
 // ── Province list (63 provinces, full list) ───────────────────────────────────

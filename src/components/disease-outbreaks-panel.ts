@@ -9,6 +9,7 @@ import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
 import { h } from '@/utils/dom-utils';
 import type { DiseaseOutbreakItem, AlertLevel } from '@/types';
 import type { EscalationInfo } from '@/services/trend-calculator';
+import { diseaseLabel } from '@/components/case-report-panel-data';
 
 const ALERT_LABELS: Record<AlertLevel, string> = {
   alert: 'ALERT',
@@ -186,7 +187,7 @@ export class DiseaseOutbreaksPanel extends Panel {
     const outbreakKey = `${item.disease}|${item.countryCode}`;
     const escalated = this._escalations.has(outbreakKey);
 
-    const title = h('span', { className: 'outbreak-row-title' }, escapeHtml(item.disease));
+    const title = h('span', { className: 'outbreak-row-title' }, escapeHtml(diseaseLabel(item.disease)));
     const meta = h('span', { className: 'outbreak-row-meta' },
       escapeHtml(item.country), ' · ', relativeTime(item.publishedAt),
       ...(item.source ? [' · ', h('span', { className: 'outbreak-source-badge' }, item.source)] : []),

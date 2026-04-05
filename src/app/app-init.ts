@@ -29,6 +29,7 @@ import { NewsFeedPanel } from '@/components/news-feed-panel';
 import { ChatPanel } from '@/components/chat-panel';
 import { ClimateAlertsPanel } from '@/components/climate-alerts-panel';
 import { CaseReportPanel } from '@/components/case-report-panel';
+import { diseaseLabel } from '@/components/case-report-panel-data';
 import { initLLM, chat } from '@/services/llm-router';
 import { buildMessages } from '@/services/llm-context-builder';
 import { processOutbreaks, processNews, setLLMComplete } from '@/services/llm-data-pipeline';
@@ -190,7 +191,7 @@ export async function initApp(): Promise<void> {
         const top = alertOutbreaks[0];
         const totalCases = alertOutbreaks.reduce((s, o) => s + (o.cases ?? 0), 0);
         banner.show(
-          `${top.disease} — ${alertOutbreaks.length} ổ dịch cấp ALERT, ${totalCases.toLocaleString()} ca`,
+          `${diseaseLabel(top.disease)} — ${alertOutbreaks.length} ổ dịch cấp ALERT, ${totalCases.toLocaleString()} ca`,
           'alert',
         );
       }
