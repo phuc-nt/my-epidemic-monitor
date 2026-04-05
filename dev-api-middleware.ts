@@ -3,6 +3,19 @@
  * Only active in dev mode. In production, Vercel Edge Functions handle these routes.
  */
 import type { Plugin } from 'vite';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Load .env.local into process.env for dev API middleware
+try {
+  const envLocal = readFileSync(resolve(process.cwd(), '.env.local'), 'utf-8');
+  for (const line of envLocal.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+    const [key, ...rest] = trimmed.split('=');
+    if (key && !(key.trim() in process.env)) process.env[key.trim()] = rest.join('=').trim();
+  }
+} catch { /* .env.local optional */ }
 
 // In-memory cache for dev mode
 const cache = new Map<string, { data: unknown; expiry: number }>();
@@ -404,6 +417,34 @@ async function fetchWhoDon(): Promise<unknown[]> {
   });
 }
 
+/** Fetch pipeline hotspots from Mac Mini API server (same logic as Edge function). */
+async function fetchPipelineHotspots(): Promise<unknown[]> {
+  const apiUrl = process.env.EPIDEMIC_API_URL;
+  const apiKey = process.env.EPIDEMIC_API_KEY;
+  if (!apiUrl || !apiKey) return [];
+  const today = new Date().toISOString().split('T')[0];
+  const res = await fetch(`${apiUrl}/hotspots?day=${today}`, {
+    headers: { 'X-Api-Key': apiKey },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) return [];
+  const data = await res.json() as { hotspots: Record<string, unknown>[] };
+  return (data.hotspots ?? []).map((h) => ({
+    id: `pipeline:${h.disease}:${h.province}:${h.day}`,
+    disease: String(h.disease ?? ''),
+    country: 'Vietnam',
+    countryCode: 'VN',
+    alertLevel: (h.peak_alert as string) ?? 'watch',
+    title: `${h.disease} tại ${h.province}`,
+    summary: `${h.article_count} nguồn (${h.source_types}). Số ca: ${h.peak_cases ?? 'N/A'}`,
+    url: String((h.source_urls as string)?.split('|')[0] ?? ''),
+    publishedAt: new Date(String(h.day)).getTime(),
+    province: String(h.province ?? ''),
+    source: `pipeline:${String(h.source_types ?? '')}`,
+    cases: h.peak_cases ? Number(h.peak_cases) : undefined,
+  }));
+}
+
 async function handleOutbreaks(): Promise<unknown> {
   const cached = getCached<unknown>('outbreaks');
   if (cached) return cached;
@@ -445,7 +486,7 @@ async function handleOutbreaks(): Promise<unknown> {
   }));
 
   // Also fetch WHO DON API (structured global outbreak data)
-  const whoDonResult = await Promise.allSettled([fetchWhoDon()]);
+  const whoDonResult = await Promise.allSettled([fetchWhoDon(), fetchPipelineHotspots()]);
 
   const all: unknown[] = [];
   const okSources: string[] = [];
@@ -462,6 +503,12 @@ async function handleOutbreaks(): Promise<unknown> {
   if (whoDonResult[0].status === 'fulfilled') {
     all.push(...(whoDonResult[0] as PromiseFulfilledResult<unknown[]>).value);
     okSources.push('WHO-DON');
+  }
+
+  // Pipeline hotspots from Mac Mini (graceful fallback if offline)
+  if (whoDonResult[1].status === 'fulfilled' && (whoDonResult[1].value as unknown[]).length > 0) {
+    all.push(...(whoDonResult[1] as PromiseFulfilledResult<unknown[]>).value);
+    okSources.push('pipeline');
   }
 
   const seen = new Set<string>();
