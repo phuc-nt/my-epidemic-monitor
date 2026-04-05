@@ -8,13 +8,14 @@
 
 Epidemic Monitor là Vercel web app (display-only) theo dõi dịch bệnh Việt Nam theo thời gian thực. Không chạy pipeline; dữ liệu từ 2 nguồn độc lập:
 1. **Quốc tế**: WHO DON API (server-side Vercel)
-2. **Việt Nam hotspot**: FastAPI server trên Mac Mini (port 8742, qua Cloudflare tunnel)
+2. **Việt Nam hotspot**: Cloudflare Worker (`epidemic-api.phucnt.workers.dev`) đọc từ Cloudflare D1
 
 Hệ thống được thiết kế **no-framework** (Vanilla TypeScript) để tránh vendor lock-in, giữ bundle size nhỏ, và tập trung vào display + AI analysis.
 
 **Nguyên tắc thiết kế cốt lõi:**
 - **Edge-first**: WHO/VN RSS parse trên Vercel Edge Functions
-- **External pipeline**: Mac Mini (`openclaw` repo) crawl báo VN + YouTube + Facebook, extract LLM, SQLite store, API expose
+- **External pipeline**: Mac Mini (`openclaw` repo) crawl báo VN + YouTube + Facebook, extract LLM, ghi SQLite → sync lên Cloudflare D1
+- **Cloud DB**: Cloudflare D1 (APAC) là nguồn dữ liệu VN duy nhất phía Vercel — không phụ thuộc Mac Mini uptime
 - **Cache tầng đôi**: Server cache in-memory + client cache localStorage
 - **Modular panels**: Mỗi panel độc lập, tự quản lý dữ liệu
 
@@ -26,7 +27,6 @@ Hệ thống được thiết kế **no-framework** (Vanilla TypeScript) để t
 graph TB
     subgraph External["Nguồn dữ liệu"]
         WHO["WHO DON API"]
-        MM["Mac Mini Pipeline<br/>(openclaw)"]
         OWID["OWID CSV"]
         OM["Open-Meteo"]
         LLM_P["LLM Providers"]
@@ -38,12 +38,16 @@ graph TB
         FB["Facebook<br/>(Playwright)"]
         EXT["Extract<br/>(M2.7)"]
         DB["SQLite<br/>epidemic-monitor.db"]
-        API["FastAPI<br/>port 8742"]
+        SYNC["sync-to-d1.py"]
+    end
+
+    subgraph Cloud["Cloudflare Cloud"]
+        D1["D1 Database<br/>(APAC)"]
+        WORKER["Worker<br/>epidemic-api.workers.dev"]
     end
 
     subgraph Edge["Vercel (api/health/v1/)"]
-        EF_OUT["outbreaks<br/>(merge WHO + pipeline)"]
-        EF_STATS["stats"]
+        EF_OUT["outbreaks"]
         EF_NEWS["news"]
         EF_CLIMATE["climate"]
     end
@@ -53,7 +57,6 @@ graph TB
             DS["DataService"]
             LS["LLMService"]
         end
-
         subgraph UI["UI Panels"]
             MAP["Map<br/>(deck.gl)"]
             PANELS["Outbreak / Stats / Chat / Climate"]
@@ -65,8 +68,11 @@ graph TB
     YT --> EXT
     FB --> EXT
     EXT --> DB
-    DB --> API
-    API --> EF_OUT
+    DB --> SYNC
+    SYNC --> D1
+    D1 --> WORKER
+    WORKER --> EF_OUT
+    WORKER --> EF_NEWS
     EF_OUT --> DS
     OM --> EF_CLIMATE
     LLM_P -.->|SSE| LS
@@ -77,9 +83,9 @@ graph TB
 
 **Tại sao Vanilla TypeScript?** Không cần React/Vue — app focus vào display + analysis, không cần component complexity. Bundle nhỏ ~60% hơn framework-based.
 
-**Tại sao Vercel Edge Functions?** Merge WHO-DON + Mac Mini hotspots tại CDN edge, latency thấp. Vercel Cron (future) có thể poll Mac Mini 1h/lần.
+**Tại sao Vercel Edge Functions?** Parse WHO-DON + proxy Cloudflare Worker tại CDN edge, latency thấp.
 
-**Tại sao Mac Mini pipeline riêng?** Vietnamese news crawl + extraction phức tạp, cần persistent browser (Playwright), SQLite store. Chạy launchd cron 6h, expose qua FastAPI + Cloudflare tunnel. Vercel chỉ call API, không crawl.
+**Tại sao Mac Mini pipeline + Cloudflare D1?** Vietnamese news crawl + extraction phức tạp, cần persistent browser (Playwright). Mac Mini xử lý nặng rồi sync lên D1 mỗi 6h — Vercel không phụ thuộc Mac Mini uptime, URL không bao giờ thay đổi.
 
 ---
 
@@ -91,8 +97,8 @@ graph TB
 - **Items**: ~30-50 global items (low VN overlap)
 - **Purpose**: Background signal, international context
 
-### Tier 2: Mac Mini Hotspots (Vietnamese, FastAPI)
-- **Source**: Crawl web (Google SERP), YouTube (transcript), Facebook (Playwright)
+### Tier 2: Vietnamese Hotspots (Cloudflare Worker + D1)
+- **Source**: Crawl web (Google SERP), YouTube (transcript), Facebook (Playwright) — chạy trên Mac Mini
 - **Keywords**: 20+ disease names in Vietnamese
 - **Pipeline**: 
   ```
@@ -108,11 +114,11 @@ graph TB
             ↓
   SQLite: outbreak_items + hotspots VIEW
             ↓
-  db-api-server.py FastAPI → /hotspots?day=YYYY-MM-DD
+  sync-to-d1.py (sau mỗi pipeline run) → Cloudflare D1 (APAC)
             ↓
-  Cloudflare Tunnel → EPIDEMIC_API_URL
+  Cloudflare Worker epidemic-api.phucnt.workers.dev → /hotspots?day= + /news
   ```
-- **Current**: 42 items across web/youtube/facebook (2026-04-05 snapshot)
+- **Current**: 42 items across web/youtube/facebook
 - **Quality**: cases_type (cumulative vs outbreak), confidence 0.5-0.95
 
 ### Tier 3: Client-side Processing (Browser)
@@ -121,7 +127,7 @@ graph TB
 - **IndexedDB**: 30-day snapshots for trend + historical
 - **UI panels**: Map, stats, chat, climate alerts
 
-**Architecture Note**: Display-only — data fetching delegated to Mac Mini + Vercel Edge. Browser never crawls or extracts.
+**Architecture Note**: Display-only — data fetching delegated to Cloudflare Worker/D1 + Vercel Edge. Browser never crawls or extracts.
 
 ---
 
@@ -263,7 +269,7 @@ Open-Meteo cung cấp forecast 14 ngày miễn phí. ClimateService tính risk s
 ╚══════════════════════════════════════════════════════════════════════╝
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│  BÊN A — Mac Mini (máy vật lý, luôn bật)                            │
+│  BÊN A — Mac Mini (máy vật lý, chạy pipeline)                       │
 │                                                                       │
 │  [1] epidemic-monitor-pipeline  (openclaw repo)                       │
 │      Chạy tự động mỗi 6h (launchd)                                   │
@@ -272,23 +278,31 @@ Open-Meteo cung cấp forecast 14 ngày miễn phí. ClimateService tính risk s
 │  [2] SQLite (.db file)                                               │
 │      Lưu trữ outbreak_items + hotspots VIEW                          │
 │                      ↓                                               │
-│  [3] db-api-server.py (FastAPI, port 8742)                           │
-│      HTTP server — đọc SQLite, trả JSON /hotspots?day=YYYY-MM-DD    │
-│                      ↓                                               │
-│  [4] cloudflared tunnel                                              │
-│      Đục lỗ ra internet: localhost:8742 → HTTPS public URL           │
-│      ⚠ Quick tunnel: URL đổi khi restart → cần named tunnel         │
+│  [3] sync-to-d1.py                                                   │
+│      Sau mỗi pipeline run: đẩy data mới lên Cloudflare D1            │
 └──────────────────────────┬──────────────────────────────────────────┘
-                           │  HTTPS (Cloudflare Tunnel)
+                           │  Cloudflare D1 API (write)
                            ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│  BÊN B — Vercel (cloud, auto-scale)                                  │
+│  BÊN B — Cloudflare Cloud (luôn online, độc lập Mac Mini)           │
 │                                                                       │
-│  [5] outbreaks.ts (Edge Function)                                    │
-│      Gọi Mac Mini API + WHO DON REST API song song                   │
-│      Merge kết quả → deduplicate → trả về cho UI                     │
+│  [4] D1 Database "epidemic-monitor" (APAC region)                    │
+│      Lưu trữ toàn bộ hotspot data — không phụ thuộc Mac Mini        │
 │                      ↓                                               │
-│  [6] UI (SPA — Vanilla TypeScript + deck.gl)                         │
+│  [5] Cloudflare Worker epidemic-api.phucnt.workers.dev               │
+│      GET /hotspots?day=YYYY-MM-DD  GET /news?limit=50               │
+│      Auth: X-Api-Key header                                          │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │  HTTPS (URL cố định, không đổi)
+                           ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│  BÊN C — Vercel (cloud, auto-scale)                                  │
+│                                                                       │
+│  [6] outbreaks.ts / news.ts (Edge Functions)                         │
+│      Gọi Cloudflare Worker + WHO DON REST API                        │
+│      Trả về cho UI                                                   │
+│                      ↓                                               │
+│  [7] UI (SPA — Vanilla TypeScript + deck.gl)                         │
 │      Hiển thị danh sách outbreak, filter, map, chat AI...            │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -300,18 +314,18 @@ Open-Meteo cung cấp forecast 14 ngày miễn phí. ClimateService tính risk s
 ║  KHI NÀO CẦN LÀM GÌ?                                                ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
-║  SỬA CODE [3] db-api-server.py          → restart launchd plist     ║
 ║  SỬA CODE [1] pipeline script           → restart launchd plist     ║
-║  ĐỔI TUNNEL URL (cloudflared restart)   → update EPIDEMIC_API_URL   ║
-║                                            trên Vercel dashboard     ║
+║  SỬA CODE [3] sync-to-d1.py            → restart launchd plist     ║
+║  SỬA CODE [5] Worker (epidemic-api)     → wrangler deploy           ║
 ║                                                                      ║
-║  SỬA CODE [5] outbreaks.ts (Edge fn)    → commit + push → auto      ║
-║  SỬA CODE [6] UI components             → commit + push → auto      ║
+║  SỬA CODE [6] outbreaks.ts (Edge fn)   → commit + push → auto      ║
+║  SỬA CODE [7] UI components             → commit + push → auto      ║
 ║  THÊM ENV VAR mới trên Vercel           → redeploy trên dashboard   ║
 ║                                                                      ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  KHÔNG CẦN DEPLOY KHI:                                               ║
-║  • Pipeline crawl xong, ghi data mới → SQLite tự cập nhật           ║
+║  • Pipeline crawl xong → sync-to-d1 tự chạy → D1 tự cập nhật       ║
+║  • Mac Mini restart/offline → D1 vẫn có data → frontend không bị    ║
 ║  • Thêm disease slug vào DISEASES list → commit+push là đủ           ║
 ║  • Sửa dev-api-middleware.ts (dev only) → chỉ cần restart dev server ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -319,17 +333,16 @@ Open-Meteo cung cấp forecast 14 ngày miễn phí. ClimateService tính risk s
 
 | Layer | "Deploy" | Cách thực hiện |
 |-------|----------|----------------|
-| Mac Mini | Không deploy — chỉ restart process | `launchctl kickstart` hoặc restart plist |
+| Mac Mini pipeline | Không deploy — chỉ restart process | `launchctl kickstart` |
+| Cloudflare Worker | `wrangler deploy` (trong thư mục epidemic-api-worker) | `wrangler deploy` |
 | Vercel | commit + push → auto deploy (2-3 phút) | `git push` |
 
 ### Vercel environment variables
 
 | Biến | Mục đích |
 |------|----------|
-| `EPIDEMIC_API_URL` | URL Cloudflare tunnel đến Mac Mini FastAPI (cần update khi tunnel đổi) |
-| `EPIDEMIC_API_KEY` | API key cho Mac Mini endpoint |
-
-> **⚠ TODO**: Chuyển từ quick tunnel (`*.trycloudflare.com`) sang named tunnel (`cloudflared tunnel create`) để URL cố định, tránh phải update `EPIDEMIC_API_URL` mỗi lần Mac Mini restart.
+| `EPIDEMIC_API_URL` | `https://epidemic-api.phucnt.workers.dev` — URL cố định, không thay đổi |
+| `EPIDEMIC_API_KEY` | API key cho Cloudflare Worker endpoint |
 
 ### Dev environment
 
@@ -344,17 +357,17 @@ graph LR
     subgraph Prod["Vercel (Production)"]
         CDN["CDN → Static assets"]
         EF_V["Edge Functions<br/>(auto-scaled)"]
-        MM_API["Mac Mini FastAPI<br/>(via Cloudflare tunnel)"]
+        CF_W["Cloudflare Worker<br/>(epidemic-api.workers.dev)"]
     end
 
     VD --> API_LOCAL
     API_LOCAL --> MW
     MW -.->|"dev only"| API_LOCAL
     VD --> CDN
-    EF_V --> MM_API
+    EF_V --> CF_W
 ```
 
-**Vercel**: zero-config, edge functions tự scale. **Dev middleware**: simulate pipeline response locally mà không cần Mac Mini tunnel. 15 Playwright E2E tests cover critical flows.
+**Vercel**: zero-config, edge functions tự scale. **Dev middleware**: simulate pipeline response locally mà không cần kết nối cloud. 15 Playwright E2E tests cover critical flows.
 
 ---
 
@@ -365,6 +378,7 @@ graph LR
 | Framework | Vanilla TS | Bundle nhỏ, không vendor lock-in |
 | Bản đồ | MapLibre + deck.gl | Tách basemap vs WebGL visualization |
 | Serverless | Vercel Edge | Latency thấp, gần user |
+| VN Data backend | Cloudflare Worker + D1 | URL cố định, không phụ thuộc Mac Mini uptime |
 | LLM | OpenAI-compatible | Swap provider không đổi code |
 | Cache | In-memory + localStorage | UX nhanh + giảm API calls |
 | Streaming | SSE | Đơn giản hơn WebSocket cho one-way stream |
