@@ -4,7 +4,7 @@
  */
 
 import { Panel } from '@/components/panel-base';
-import { emit } from '@/app/app-context';
+import { emit, on } from '@/app/app-context';
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
 import { h } from '@/utils/dom-utils';
 import type { DiseaseOutbreakItem, AlertLevel } from '@/types';
@@ -38,25 +38,47 @@ export class DiseaseOutbreaksPanel extends Panel {
   private _filter: AlertLevel | null = null;
   private _search = '';
   private _showAll = false;
+  private _provinceFilter: string | null = null;
   private _filterBar: HTMLElement;
+  private _provinceChip: HTMLElement;
   private _searchInput: HTMLInputElement;
   private _listEl: HTMLElement;
 
   constructor() {
     super({ id: 'disease-outbreaks', title: 'Disease Outbreaks', showCount: true, defaultRowSpan: 3 });
 
-    this._filterBar = this._buildFilterBar();
+    this._filterBar   = this._buildFilterBar();
+    this._provinceChip = this._buildProvinceChip();
     this._searchInput = this._buildSearchInput();
     this._listEl = h('div', { className: 'outbreak-list' });
 
     const toolbar = h('div', { className: 'outbreak-toolbar' },
       this._filterBar,
+      this._provinceChip,
       this._searchInput,
     );
 
     // Insert toolbar before content scroll area
     this.content.appendChild(toolbar);
     this.content.appendChild(this._listEl);
+
+    // Listen for map marker clicks → filter by province
+    on('map-marker-clicked', (data) => {
+      const item = data as DiseaseOutbreakItem;
+      this.filterByProvince(item.province ?? null);
+    });
+  }
+
+  /**
+   * Filter the outbreak list to show only outbreaks for a province.
+   * Pass null to clear the filter.
+   */
+  filterByProvince(province: string | null): void {
+    this._provinceFilter = province;
+    this._showAll = province !== null; // auto-expand when province selected
+    this._syncProvinceChip();
+    this._render();
+    emit('province-filter-changed', province);
   }
 
   /** Set escalation info — outbreaks that recently increased severity. */
@@ -79,6 +101,7 @@ export class DiseaseOutbreaksPanel extends Panel {
     this.content.textContent = '';
     const toolbar = h('div', { className: 'outbreak-toolbar' },
       this._filterBar,
+      this._provinceChip,
       this._searchInput,
     );
     this.content.appendChild(toolbar);
@@ -112,6 +135,27 @@ export class DiseaseOutbreaksPanel extends Panel {
     return bar;
   }
 
+  /** Province filter chip — hidden by default, shown when a province is selected. */
+  private _buildProvinceChip(): HTMLElement {
+    const chip = h('div', { className: 'outbreak-province-chip outbreak-province-chip--hidden' });
+    return chip;
+  }
+
+  /** Sync the province chip label and visibility. */
+  private _syncProvinceChip(): void {
+    if (this._provinceFilter) {
+      this._provinceChip.textContent = '';
+      const label = document.createTextNode(`📍 ${this._provinceFilter}`);
+      const clearBtn = h('button', { className: 'outbreak-province-chip-clear', title: 'Xóa bộ lọc' }, '×');
+      clearBtn.addEventListener('click', (e) => { e.stopPropagation(); this.filterByProvince(null); });
+      this._provinceChip.appendChild(label);
+      this._provinceChip.appendChild(clearBtn);
+      this._provinceChip.classList.remove('outbreak-province-chip--hidden');
+    } else {
+      this._provinceChip.classList.add('outbreak-province-chip--hidden');
+    }
+  }
+
   private _buildSearchInput(): HTMLInputElement {
     const input = document.createElement('input');
     input.type = 'search';
@@ -138,8 +182,9 @@ export class DiseaseOutbreaksPanel extends Panel {
   private _getFiltered(): DiseaseOutbreakItem[] {
     return this._outbreaks.filter(o => {
       if (this._filter && o.alertLevel !== this._filter) return false;
+      if (this._provinceFilter && o.province !== this._provinceFilter) return false;
       if (this._search) {
-        const hay = `${o.disease} ${o.country}`.toLowerCase();
+        const hay = `${o.disease} ${o.country} ${o.province ?? ''}`.toLowerCase();
         if (!hay.includes(this._search)) return false;
       }
       return true;

@@ -38,6 +38,7 @@ let _geoJson: unknown = null;
 let _callbacks: LayerCallbacks = {};
 let _earlyWarnings: EarlyWarning[] = [];
 let _districtGeoJson: unknown = null;
+let _highlightedProvince: string | null = null;
 
 /**
  * Rebuild and push the active layer stack to the map.
@@ -81,6 +82,12 @@ export function setEarlyWarnings(warnings: EarlyWarning[]): void {
   if (_shell) _applyLayers();
 }
 
+/** Highlight markers for a specific province — dims all others. Pass null to clear. */
+export function setHighlightedProvince(province: string | null): void {
+  _highlightedProvince = province;
+  if (_shell) _applyLayers();
+}
+
 /** Return current visibility state (copy). */
 export function getLayerVisibility(): Record<LayerName, boolean> {
   return { ..._visible };
@@ -109,7 +116,7 @@ function _applyLayers(): void {
   }
 
   if (_visible.markers) {
-    layers.push(createOutbreakMarkersLayer(_outbreaks, _callbacks.onMarkerClick));
+    layers.push(createOutbreakMarkersLayer(_outbreaks, _callbacks.onMarkerClick, _highlightedProvince));
   }
 
   if (_visible.earlyWarnings && _earlyWarnings.length > 0) {

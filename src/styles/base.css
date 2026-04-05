@@ -273,6 +273,19 @@ html, body {
 .outbreak-filter-btn[data-level="warning"].outbreak-filter-btn--active { background: var(--warning); }
 .outbreak-filter-btn[data-level="watch"].outbreak-filter-btn--active { background: var(--watch); }
 
+.outbreak-province-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: #dbeafe; border: 1px solid #93c5fd; border-radius: 20px;
+  padding: 2px 8px; font-size: 11px; font-weight: 600; color: #1d4ed8;
+  width: fit-content;
+}
+.outbreak-province-chip--hidden { display: none; }
+.outbreak-province-chip-clear {
+  background: none; border: none; cursor: pointer; font-size: 14px; line-height: 1;
+  color: #1d4ed8; padding: 0; margin-left: 2px;
+}
+.outbreak-province-chip-clear:hover { color: var(--alert); }
+
 .outbreak-search {
   width: 100%; padding: 4px 8px; font-size: 12px; border-radius: var(--radius);
   border: 1px solid var(--border); background: var(--surface2); color: var(--text);

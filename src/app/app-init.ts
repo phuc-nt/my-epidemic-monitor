@@ -37,7 +37,7 @@ import { complete } from '@/services/llm-router';
 import { fetchClimateForecasts } from '@/services/climate-service';
 import { initSnapshotDB, saveSnapshot, getRecentSnapshots, pruneOldSnapshots } from '@/services/snapshot-store';
 import { computeStatsDelta, computeAllTrends, detectEscalations, detectEarlyWarnings } from '@/services/trend-calculator';
-import { setEarlyWarnings, setDistrictGeoJson } from '@/components/map-layers/index';
+import { setEarlyWarnings, setDistrictGeoJson, setHighlightedProvince } from '@/components/map-layers/index';
 import { BreakingNewsBanner } from '@/components/breaking-news-banner';
 import { CrossSourceSignalsPanel } from '@/components/cross-source-signals-panel';
 import { ProvinceDeepDivePanel } from '@/components/province-deep-dive-panel';
@@ -288,13 +288,28 @@ export async function initApp(): Promise<void> {
 
     // Wire map layers
     const mapCallbacks = {
-      onMarkerClick: (item: DiseaseOutbreakItem) => emit('outbreak-selected', item),
+      // Map marker click: show popup + filter list + highlight province
+      onMarkerClick: (item: DiseaseOutbreakItem) => {
+        emit('outbreak-selected', item);
+        emit('map-marker-clicked', item);
+      },
       onCountryClick: (code: string) => {
         const profile = ctx.countryProfiles.get(code);
         if (profile) emit('country-selected', profile);
       },
     };
     updateMapLayers(mapShell, outbreaks, riskScores, null, mapCallbacks);
+
+    // List row click → highlight matching province markers on map
+    on('outbreak-selected', (data) => {
+      const item = data as DiseaseOutbreakItem;
+      if (item.province) setHighlightedProvince(item.province);
+    });
+
+    // Province filter cleared from panel → clear map highlight
+    on('province-filter-changed', (data) => {
+      setHighlightedProvince((data as string | null));
+    });
 
     // Time filter: re-render map layers with filtered outbreaks
     on('time-filter-changed', (data) => {
