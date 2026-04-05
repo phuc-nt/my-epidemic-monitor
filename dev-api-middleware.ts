@@ -5,6 +5,7 @@
 import type { Plugin } from 'vite';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { diseaseLabel } from './src/components/case-report-panel-data';
 
 // Load .env.local into process.env for dev API middleware
 try {
@@ -435,7 +436,7 @@ async function fetchPipelineHotspots(): Promise<unknown[]> {
     country: 'Vietnam',
     countryCode: 'VN',
     alertLevel: (h.peak_alert as string) ?? 'watch',
-    title: `${h.disease} tại ${h.province}`,
+    title: `${diseaseLabel(String(h.disease ?? ''))} tại ${h.province}`,
     summary: `${h.article_count} nguồn (${h.source_types}). Số ca: ${h.peak_cases ?? 'N/A'}`,
     url: String((h.source_urls as string)?.split('|')[0] ?? ''),
     publishedAt: new Date(String(h.day)).getTime(),

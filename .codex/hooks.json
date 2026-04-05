@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[my-agent-kit] Session started at $(date '+%Y-%m-%d %H:%M'). Read AGENTS.md for project instructions.\"",
+            "timeoutSec": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[reminder] Follow development rules: YAGNI, KISS, DRY. Run tests before push.\"",
+            "timeoutSec": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+# Custom .mkignore with extra patterns
+node_modules
+dist
+out
+.cache
+*.pyc
