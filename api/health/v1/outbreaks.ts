@@ -380,6 +380,7 @@ async function fetchPipelineHotspots(): Promise<OutbreakResult[]> {
     publishedAt: new Date(String(h.day)).getTime(),
     province: String(h.province ?? ''),
     source: `pipeline:${String(h.source_types ?? '')}`,
+    cases: h.peak_cases ? Number(h.peak_cases) : undefined,
   }));
 }
 
