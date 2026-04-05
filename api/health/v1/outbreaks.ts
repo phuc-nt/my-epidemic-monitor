@@ -353,14 +353,45 @@ async function fetchRssSource(source: { name: string; url: string }): Promise<Ou
 /** Vietnamese news RSS sources (WHO-DON handled separately via REST API) */
 const VN_RSS_SOURCES = OUTBREAK_SOURCES.filter(s => s.name !== 'WHO-DON');
 
+// ---------------------------------------------------------------------------
+// Pipeline hotspots — Mac Mini FastAPI via Cloudflare Tunnel
+// ---------------------------------------------------------------------------
+async function fetchPipelineHotspots(): Promise<OutbreakResult[]> {
+  const apiUrl = process.env.EPIDEMIC_API_URL;
+  const apiKey = process.env.EPIDEMIC_API_KEY;
+  if (!apiUrl || !apiKey) return [];
+
+  const today = new Date().toISOString().split('T')[0];
+  const res = await fetch(`${apiUrl}/hotspots?day=${today}`, {
+    headers: { 'X-Api-Key': apiKey },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`Pipeline API ${res.status}`);
+  const data: { hotspots: Record<string, unknown>[] } = await res.json();
+  return (data.hotspots ?? []).map(h => ({
+    id: hashString(`pipeline:${h.disease}:${h.province}:${h.day}`),
+    disease: String(h.disease ?? ''),
+    country: 'Vietnam',
+    countryCode: 'VN',
+    alertLevel: (h.peak_alert as 'alert' | 'warning' | 'watch') ?? 'watch',
+    title: `${h.disease} tại ${h.province}`,
+    summary: `${h.article_count} nguồn (${h.source_types}). Số ca: ${h.peak_cases ?? 'N/A'}`,
+    url: String((h.source_urls as string)?.split('|')[0] ?? ''),
+    publishedAt: new Date(String(h.day)).getTime(),
+    province: String(h.province ?? ''),
+    source: `pipeline:${String(h.source_types ?? '')}`,
+  }));
+}
+
 export default async function GET(_request: Request): Promise<Response> {
   const cached = getCached<{ outbreaks: unknown[]; fetchedAt: number; sources: string[] }>(CACHE_KEY);
   if (cached) return jsonResponse(cached, 200, 600);
 
   try {
-    // Fetch WHO DON REST API + VN news RSS feeds in parallel
-    const [whoDonResult, ...rssResults] = await Promise.allSettled([
+    // Fetch WHO DON REST API + pipeline hotspots + VN news RSS feeds in parallel
+    const [whoDonResult, pipelineResult, ...rssResults] = await Promise.allSettled([
       fetchWhoDonApi(),
+      fetchPipelineHotspots(),
       ...VN_RSS_SOURCES.map(fetchRssSource),
     ]);
 
@@ -371,6 +402,12 @@ export default async function GET(_request: Request): Promise<Response> {
     if (whoDonResult.status === 'fulfilled') {
       allOutbreaks.push(...whoDonResult.value);
       successSources.push('WHO-DON');
+    }
+
+    // Pipeline hotspots from Mac Mini (graceful fallback if offline)
+    if (pipelineResult.status === 'fulfilled' && pipelineResult.value.length > 0) {
+      allOutbreaks.push(...pipelineResult.value);
+      successSources.push('pipeline');
     }
 
     // VN RSS results

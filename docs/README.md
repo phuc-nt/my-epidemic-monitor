@@ -20,6 +20,18 @@ docs/
 ├── research/                         # Nghiên cứu thị trường
 │   └── research-260404-epidemic-products-and-needs.md
 │
+├── solutions/                        # Giải pháp đề xuất (từ external research)
+│   ├── data-enrichment-pipeline.md
+│   └── international-data-sources.md
+│
+├── pipelines-experiment/             # [NEW] Experimental ingestion pipelines
+│   ├── README.md                     # Entry point: web+YT+FB keyword pipelines
+│   ├── architecture-and-results.md   # Iterations v1→v3, 11 items tested
+│   ├── tools-stack-reference.md      # Crawl4AI, M2.7, MLX Whisper, YouTube API
+│   ├── integration-guide.md          # How to integrate into my-epidemic-monitor
+│   ├── scripts/                      # Source code (4 pipelines + extractor)
+│   └── sample-outputs/               # Real JSON outputs
+│
 └── development-roadmap.md            # Roadmap: completed + backlog
 ```
 

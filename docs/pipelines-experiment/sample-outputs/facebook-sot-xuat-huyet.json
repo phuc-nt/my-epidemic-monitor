@@ -1,0 +1,54 @@
+{
+  "source_type": "facebook",
+  "count": 3,
+  "items": [
+    {
+      "is_outbreak_news": true,
+      "disease": "dengue",
+      "disease_vn": "sốt xuất huyết",
+      "province": "TP.HCM",
+      "district": null,
+      "cases": null,
+      "deaths": null,
+      "severity": "watch",
+      "date": null,
+      "confidence": 0.3,
+      "summary_vi": "Trung tâm Kiểm soát Bệnh tật TP.HCM đăng bài về tình hình dịch bệnh sốt xuất huyết và tay chân miệng trên địa bàn thành phố, tuy nhiên nội dung chi tiết không có sẵn để trích xuất.",
+      "_source_url": "https://www.facebook.com/ksbthcm/posts/t%C3%ACnh-h%C3%ACnh-d%E1%BB%8Bch-b%E1%BB%87nh-s%E1%BB%91t-xu%E1%BA%A5t-huy%E1%BA%BFt-tay-ch%C3%A2n-mi%E1%BB%87ng-tr%C3%AAn-%C4%91%E1%BB%8Ba-b%C3%A0n-tp-h%E1%BB%93-ch%C3%AD-minh-t%C3%AD/1369975505167213/",
+      "_source_title": "📣📣📣[Tì... - Trung tâm Kiểm soát Bệnh tật Thành phố Hồ Chí Minh | Facebook",
+      "_source_type": "facebook"
+    },
+    {
+      "is_outbreak_news": true,
+      "disease": "dengue",
+      "disease_vn": "sốt xuất huyết",
+      "province": "Hải Dương",
+      "district": null,
+      "cases": null,
+      "deaths": null,
+      "severity": "warning",
+      "date": null,
+      "confidence": 0.35,
+      "summary_vi": "Bệnh viện Bệnh nhiệt đới Hải Dương đăng cảnh báo về mùa dịch sốt xuất huyết, khuyến cáo người dân chủ động phòng bệnh bảo vệ sức khỏe.",
+      "_source_url": "https://www.facebook.com/nhietdoihaiduong.vn/posts/c%E1%BA%A3nh-b%C3%A1o-m%C3%B9a-d%E1%BB%8Bch-s%E1%BB%91t-xu%E1%BA%A5t-huy%E1%BA%BFt-2026-h%C3%A3y-ch%E1%BB%A7-%C4%91%E1%BB%99ng-ph%C3%B2ng-b%E1%BB%87nh-b%E1%BA%A3o-v%E1%BB%87-s%E1%BB%A9c-kh%E1%BB%8Fe-gi/122175686528829471/",
+      "_source_title": "CẢNH BÁO MÙA DỊCH SỐT... - Bệnh viện Bệnh nhiệt đới Hải Dương | Facebook",
+      "_source_type": "facebook"
+    },
+    {
+      "is_outbreak_news": true,
+      "disease": "hand-foot-mouth",
+      "disease_vn": "bệnh tay chân miệng",
+      "province": "Cần Thơ",
+      "district": null,
+      "cases": null,
+      "deaths": null,
+      "severity": "outbreak",
+      "date": null,
+      "confidence": 0.7,
+      "summary_vi": "Bệnh tay chân miệng và sốt xuất huyết gia tăng mạnh tại Cần Thơ.",
+      "_source_url": "https://www.facebook.com/thanhnien/posts/b%E1%BB%87nh-tay-ch%C3%A2n-mi%E1%BB%87ng-v%C3%A0-s%E1%BB%91t-xu%E1%BA%A5t-huy%E1%BA%BFt-gia-t%C4%83ng-m%E1%BA%A1nh-t%E1%BA%A1i-c%E1%BA%A7n-th%C6%A1/1433782455454739/",
+      "_source_title": "Báo Thanh Niên - Bệnh tay chân miệng và sốt xuất huyết gia... | Facebook",
+      "_source_type": "facebook"
+    }
+  ]
+}
