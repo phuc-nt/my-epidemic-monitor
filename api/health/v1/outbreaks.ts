@@ -135,6 +135,7 @@ function resolveProvinceCoords(province: string): [number, number] | null {
 interface HotspotItem {
   disease: string;
   province: string;
+  district: string | null;
   day: string;
   peak_alert: string;
   peak_cases: number | null;
@@ -156,17 +157,19 @@ function mapHotspots(hotspots: HotspotItem[]): Record<string, unknown>[] {
   return hotspots.map(h => {
     const province = String(h.province ?? '');
     const coords = resolveProvinceCoords(province);
+    const districtIdSuf = h.district ? `:${h.district}` : '';
     return {
-      id: `pipeline:${h.disease}:${h.province}:${h.day}`,
+      id: `pipeline:${h.disease}:${h.province}${districtIdSuf}:${h.day}`,
       disease: String(h.disease ?? ''),
       country: 'Vietnam',
       countryCode: 'VN',
       alertLevel: (h.peak_alert as 'alert' | 'warning' | 'watch') ?? 'watch',
-      title: `${diseaseLabel(String(h.disease ?? ''))} tại ${h.province}`,
+      title: `${diseaseLabel(String(h.disease ?? ''))} tại ${h.district ? h.district + ', ' : ''}${h.province}`,
       summary: `${h.article_count} nguồn (${h.source_types}). Số ca: ${h.peak_cases ?? 'N/A'}`,
       url: String((h.source_urls as string)?.split('|')[0] ?? ''),
       publishedAt: new Date(String(h.day)).getTime(),
       province,
+      district: h.district ?? undefined,
       lat: coords?.[0],
       lng: coords?.[1],
       source: `pipeline:${String(h.source_types ?? '')}`,

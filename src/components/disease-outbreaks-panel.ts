@@ -246,14 +246,17 @@ export class DiseaseOutbreaksPanel extends Panel {
 
     const title = h('span', { className: 'outbreak-row-title' }, escapeHtml(diseaseLabel(item.disease)));
 
-    // Province shown when available and differs from country
-    const provincePart: (string | HTMLElement)[] =
-      item.province && item.province !== item.country
-        ? [' · ', escapeHtml(item.province)]
+    const locParts = [];
+    if (item.district) locParts.push(item.district);
+    if (item.province && item.province !== item.country) locParts.push(item.province);
+
+    const locationPart: (string | HTMLElement)[] =
+      locParts.length > 0
+        ? [' · ', escapeHtml(locParts.join(', '))]
         : [];
 
     const meta = h('span', { className: 'outbreak-row-meta' },
-      escapeHtml(item.country), ...provincePart, ' · ', relativeTime(item.publishedAt),
+      escapeHtml(item.country), ...locationPart, ' · ', relativeTime(item.publishedAt),
       ...(item.source ? [' · ', h('span', { className: 'outbreak-source-badge' }, item.source)] : []),
       ...(escalated ? [' ', h('span', { className: 'escalation-badge' }, '⬆')] : []),
     );
