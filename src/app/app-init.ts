@@ -25,6 +25,7 @@ import { fetchDiseaseOutbreaks } from '@/services/disease-outbreak-service';
 import { fetchEpidemicStats } from '@/services/epidemic-stats-service';
 import { fetchHealthNews } from '@/services/news-feed-service';
 import { invalidateCache } from '@/services/fetch-cache';
+import { fetchBulkData, invalidateBulkCache } from '@/services/bulk-data-service';
 import { NewsFeedPanel } from '@/components/news-feed-panel';
 import { ChatPanel } from '@/components/chat-panel';
 import { ClimateAlertsPanel } from '@/components/climate-alerts-panel';
@@ -238,18 +239,29 @@ export async function initApp(): Promise<void> {
     }
 
     async function fetchAllData(): Promise<{ outbreaks: DiseaseOutbreakItem[]; stats: EpidemicStats; news: NewsItem[] }> {
-      invalidateCache('disease-outbreaks');
-      invalidateCache('epidemic-stats');
-      invalidateCache('health-news');
+      invalidateBulkCache();
 
-      const [outbreaks, stats, news] = await Promise.all([
-        fetchDiseaseOutbreaks(),
-        fetchEpidemicStats(),
-        fetchHealthNews(),
-      ]);
-      lastFetchTime = Date.now();
-      updateDataAge();
-      return { outbreaks, stats, news };
+      try {
+        // Single API call: outbreaks + stats + news in one request (saves ~67% function invocations)
+        const bulk = await fetchBulkData();
+        lastFetchTime = Date.now();
+        updateDataAge();
+        return bulk;
+      } catch {
+        // Fallback to individual calls if bulk endpoint unavailable
+        invalidateCache('disease-outbreaks');
+        invalidateCache('epidemic-stats');
+        invalidateCache('health-news');
+
+        const [outbreaks, stats, news] = await Promise.all([
+          fetchDiseaseOutbreaks(),
+          fetchEpidemicStats(),
+          fetchHealthNews(),
+        ]);
+        lastFetchTime = Date.now();
+        updateDataAge();
+        return { outbreaks, stats, news };
+      }
     }
 
     function applyData(outbreaks: DiseaseOutbreakItem[], stats: EpidemicStats, news: NewsItem[]): void {

@@ -825,7 +825,27 @@ export function devApiMiddleware(): Plugin {
         const route = urlObj.pathname.replace('/api/health/v1/', '');
         try {
           let data: unknown;
-          if (route === 'news') data = await handleNews();
+          if (route === 'all') {
+            // Bulk endpoint: outbreaks + stats + news in one call
+            const [outbreaksPayload, newsPayload] = await Promise.all([handleOutbreaks(), handleNews()]);
+            const ob = (outbreaksPayload as { outbreaks: Array<{ disease: string; countryCode: string; alertLevel: string }> }).outbreaks;
+            const diseaseCount = new Map<string, number>();
+            const countries = new Set<string>();
+            let activeAlerts = 0;
+            for (const o of ob) {
+              diseaseCount.set(o.disease, (diseaseCount.get(o.disease) ?? 0) + 1);
+              if (o.countryCode) countries.add(o.countryCode);
+              if (o.alertLevel === 'alert') activeAlerts++;
+            }
+            data = {
+              ...(outbreaksPayload as object),
+              stats: { totalOutbreaks: ob.length, activeAlerts, countriesAffected: countries.size,
+                topDiseases: Array.from(diseaseCount.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([disease, count]) => ({ disease, count })),
+                lastUpdated: Date.now() },
+              news: newsPayload,
+            };
+          }
+          else if (route === 'news') data = await handleNews();
           else if (route === 'outbreaks') data = await handleOutbreaks();
           else if (route === 'stats') data = await handleStats();
           else if (route === 'climate') data = await handleClimate();
