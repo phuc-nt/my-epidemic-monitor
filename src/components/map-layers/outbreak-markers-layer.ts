@@ -46,21 +46,25 @@ export function createOutbreakMarkersLayer(
     getPosition: (d) => [d.lng!, d.lat!],
     getRadius: (d) => {
       const base = ALERT_RADII[d.alertLevel] ?? 10;
-      const isOtherDay = selectedDate && dayOf(d.publishedAt) !== selectedDate;
-      if (isOtherDay) return base * 0.55; // past days: smaller
-      if (highlightedProvince && d.province === highlightedProvince) return base * 1.3;
-      return base;
+      const isToday = selectedDate && dayOf(d.publishedAt) === selectedDate;
+      // Today's items: full size (or enlarged if province highlighted)
+      if (isToday) {
+        if (highlightedProvince && d.province === highlightedProvince) return base * 1.3;
+        return base;
+      }
+      // Past days: slightly smaller but still visible
+      return base * 0.7;
     },
     getFillColor: (d) => {
       const color = ALERT_COLORS[d.alertLevel] ?? [150, 150, 150, 150];
-      const isOtherDay = selectedDate && dayOf(d.publishedAt) !== selectedDate;
-      // Past days: muted gray
-      if (isOtherDay) return [160, 160, 170, 70];
-      // Province dimming (within selected day)
+      const isToday = selectedDate && dayOf(d.publishedAt) === selectedDate;
+      // Province dimming
       if (highlightedProvince && d.province !== highlightedProvince) {
         return [color[0], color[1], color[2], 60];
       }
-      return color;
+      // Today: full color, past days: softer opacity
+      if (isToday) return color;
+      return [color[0], color[1], color[2], Math.round(color[3] * 0.5)];
     },
     pickable: true,
     onClick: (info) => {
@@ -70,10 +74,10 @@ export function createOutbreakMarkersLayer(
     radiusMaxPixels: 40,
     stroked: true,
     getLineColor: (d) => {
-      const isOtherDay = selectedDate && dayOf(d.publishedAt) !== selectedDate;
-      if (isOtherDay) return [160, 160, 170, 40];
+      const isToday = selectedDate && dayOf(d.publishedAt) === selectedDate;
       if (highlightedProvince && d.province === highlightedProvince) return [255, 255, 255, 200];
-      return [0, 0, 0, 40];
+      if (isToday) return [0, 0, 0, 40];
+      return [0, 0, 0, 20]; // past days: lighter stroke
     },
     lineWidthMinPixels: 1,
     updateTriggers: {

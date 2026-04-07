@@ -302,6 +302,8 @@ html, body {
 .outbreak-row--alert { border-left-color: var(--alert); }
 .outbreak-row--warning { border-left-color: var(--warning); }
 .outbreak-row--watch { border-left-color: var(--watch); }
+.outbreak-row--today { background: var(--surface2); border-left-width: 4px; }
+.outbreak-row:not(.outbreak-row--today) { opacity: 0.7; }
 .outbreak-row-header { display: flex; align-items: center; gap: 6px; }
 .outbreak-row-title { font-weight: 600; font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .outbreak-row-meta { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }

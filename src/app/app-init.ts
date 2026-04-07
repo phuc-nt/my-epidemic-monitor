@@ -165,10 +165,10 @@ export async function initApp(): Promise<void> {
     }
 
     /** Rebuild the alert summary strip for a given date's outbreaks. */
-    function updateSummaryStrip(allOutbreaks: DiseaseOutbreakItem[], date: string): void {
-      const items = allOutbreaks.filter(o =>
-        new Date(o.publishedAt).toISOString().split('T')[0] === date
-      );
+    function updateSummaryStrip(allOutbreaks: DiseaseOutbreakItem[], date?: string): void {
+      const items = date
+        ? allOutbreaks.filter(o => new Date(o.publishedAt).toISOString().split('T')[0] === date)
+        : allOutbreaks;
       const alertCnt   = items.filter(o => o.alertLevel === 'alert').length;
       const warnCnt    = items.filter(o => o.alertLevel === 'warning').length;
       const watchCnt   = items.filter(o => o.alertLevel === 'watch').length;
@@ -273,7 +273,7 @@ export async function initApp(): Promise<void> {
 
       // Update timeline count badges + summary strip with latest data
       updateTimelineCounts(outbreaks);
-      updateSummaryStrip(outbreaks, _selectedDate);
+      updateSummaryStrip(outbreaks); // show all 7-day summary by default
 
       // Cross-source signal detection
       const signals = detectCrossSourceSignals(outbreaks, news);
@@ -416,21 +416,23 @@ export async function initApp(): Promise<void> {
       outbreaksPanel.updateData(filtered);
     });
 
-    // Day selected on timeline → filter panel + dim past-day map markers + refresh summary
+    // Day selected on timeline → scroll panel to that day's items (no filtering)
     on('day-selected', (data) => {
       const date = data as string;
       _selectedDate = date;
       for (const [day, btn] of tlBtns) {
         btn.classList.toggle('timeline-day-btn--active', day === date);
       }
-      setSelectedDate(date);
+      // Soft highlight on map — today stays prominent, selected day secondary
+      setSelectedDate(date === todayStr ? todayStr : date);
+      // Filter panel to selected day for focused view
       outbreaksPanel.filterByDate(date);
       updateSummaryStrip(ctx.outbreaks, date);
     });
 
-    // Default: filter to today on load
+    // Default: show ALL 7 days — today highlighted on map
     setSelectedDate(todayStr);
-    outbreaksPanel.filterByDate(todayStr);
+    outbreaksPanel.filterByDate(null); // show all days, not just today
 
     // 11. Load district GeoJSON boundaries (non-blocking)
     fetch('/data/vietnam-districts.geojson')

@@ -266,7 +266,9 @@ export class DiseaseOutbreaksPanel extends Panel {
       ? h('a', { href: safeUrl, target: '_blank', rel: 'noopener noreferrer', className: 'outbreak-row-link' }, '↗')
       : null;
 
-    const row = h('div', { className: `outbreak-row outbreak-row--${item.alertLevel}` },
+    const isToday = new Date(item.publishedAt).toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+    const todayClass = isToday ? ' outbreak-row--today' : '';
+    const row = h('div', { className: `outbreak-row outbreak-row--${item.alertLevel}${todayClass}` },
       h('div', { className: 'outbreak-row-header' }, badge, title, ...(link ? [link] : [])),
       meta,
     );
