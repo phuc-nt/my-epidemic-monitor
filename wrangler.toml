@@ -1,0 +1,8 @@
+name = "epidemic-monitor"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-04-07"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "epidemic-monitor"
+database_id = "c4f1b6bf-ec62-4a37-8a67-0d5eec9f053d"

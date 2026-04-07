@@ -1,0 +1,2 @@
+# SPA fallback handled by Cloudflare Pages automatically for non-API routes
+# API routes are handled by Pages Functions via _routes.json

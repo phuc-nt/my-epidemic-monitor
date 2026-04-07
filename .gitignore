@@ -7,4 +7,5 @@ dist/
 .DS_Store
 test-results/
 .vercel
+.wrangler/
 .env*.local
