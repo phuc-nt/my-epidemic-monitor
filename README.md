@@ -44,7 +44,7 @@ Open [localhost:5173](http://localhost:5173). Map centered on Vietnam with REAL 
 - **Cases/deaths/wards = 0%**: Article content extraction via crawl4ai + LLM still processing; many crawled articles are health guides not outbreaks
 - **VietnamNet noise**: 14 "Lao" disease items (health education vs TB outbreaks)
 - **URLs expire**: Vietnamese news links rotate 1-2 days (404/redirect)
-- **WHO/CDC timeout**: International sources timeout in dev middleware (Vercel Edge works)
+- **WHO/CDC timeout**: International sources may timeout in dev middleware
 - **Climate**: 5/8 provinces returning data (3 may timeout)
 
 ## Tech Stack
@@ -53,11 +53,11 @@ Open [localhost:5173](http://localhost:5173). Map centered on Vietnam with REAL 
 |----------|-------------|
 | Frontend | Vanilla TypeScript, Vite, deck.gl, MapLibre GL |
 | Map | OpenFreeMap vector tiles (bright theme) |
-| API | Vercel Edge Functions (REST/JSON) |
+| API | Cloudflare Pages Functions (D1 native binding) |
 | AI/LLM | OpenRouter (MiniMax M2.7), Ollama, MLX — OpenAI-compatible |
 | Data | WHO DON, CDC, MOH-VN, OWID, Open-Meteo (10 sources) |
 | Test | Playwright E2E (15 tests) |
-| Deploy | Vercel, Docker + nginx |
+| Deploy | Cloudflare Pages, Docker + nginx |
 
 ## Real Data Sources (105 + 50 items)
 
@@ -80,7 +80,7 @@ src/
 ├── types/            # TypeScript interfaces
 ├── utils/            # DOM, sanitize, storage, sparkline
 └── styles/           # Light theme CSS (5 files)
-api/health/v1/        # 6 edge functions
+functions/health/v1/  # 6 Cloudflare Pages Functions (D1 native binding)
 e2e/                  # 15 Playwright tests
 docs/                 # Product, technical, devlogs, research
 ```
@@ -105,9 +105,11 @@ npm run build         # Production build (455KB gzip)
 
 ## Deployment
 
-### Vercel
+### Cloudflare Pages
 ```bash
-npx vercel
+npm run build
+npx wrangler pages deploy dist --project-name epidemic-monitor
+# → https://epidemic-monitor.pages.dev
 ```
 
 ### Docker
