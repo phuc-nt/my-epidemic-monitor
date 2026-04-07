@@ -215,7 +215,7 @@ export async function initApp(): Promise<void> {
     on('outbreak-selected', (data) => {
       const item = data as DiseaseOutbreakItem;
       if (item.lat != null && item.lng != null) {
-        mapShell.flyTo([item.lng, item.lat], 5);
+        mapShell.flyTo([item.lng, item.lat], 8);
         const cx = mapContainer.clientWidth  / 2;
         const cy = mapContainer.clientHeight / 2;
         popup.show(item, cx, cy);
