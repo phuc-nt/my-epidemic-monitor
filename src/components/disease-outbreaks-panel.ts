@@ -203,6 +203,13 @@ export class DiseaseOutbreaksPanel extends Panel {
     });
   }
 
+  /** Provinces that represent nationwide/regional — no specific map location */
+  private static readonly UNLOCATED = new Set(['Toàn quốc', 'phía Nam', 'ĐBSCL']);
+
+  private _isUnlocated(o: DiseaseOutbreakItem): boolean {
+    return DiseaseOutbreaksPanel.UNLOCATED.has(o.province ?? '') || !o.province;
+  }
+
   private _render(): void {
     const items = this._getFiltered();
 
@@ -215,22 +222,37 @@ export class DiseaseOutbreaksPanel extends Panel {
       return;
     }
 
+    // Split: located (province-specific) vs unlocated (Toàn quốc, etc.)
+    const located = items.filter(o => !this._isUnlocated(o));
+    const unlocated = items.filter(o => this._isUnlocated(o));
+
+    // Render located items first
     const MAX_VISIBLE = 5;
-    const visible = this._showAll ? items : items.slice(0, MAX_VISIBLE);
+    const visible = this._showAll ? located : located.slice(0, MAX_VISIBLE);
     for (const item of visible) {
       this._listEl.appendChild(this._buildRow(item));
     }
 
-    // "Show more" button if truncated
-    if (!this._showAll && items.length > MAX_VISIBLE) {
+    // "Show more" button for located items
+    if (!this._showAll && located.length > MAX_VISIBLE) {
       const more = h('button', { className: 'outbreak-show-more' },
-        `Xem thêm (${items.length - MAX_VISIBLE} mục)`);
+        `Xem thêm (${located.length - MAX_VISIBLE} mục)`);
       more.addEventListener('click', () => { this._showAll = true; this._render(); });
       this._listEl.appendChild(more);
-    } else if (this._showAll && items.length > MAX_VISIBLE) {
+    } else if (this._showAll && located.length > MAX_VISIBLE) {
       const less = h('button', { className: 'outbreak-show-more' }, 'Thu gọn');
       less.addEventListener('click', () => { this._showAll = false; this._render(); });
       this._listEl.appendChild(less);
+    }
+
+    // Render unlocated section (Toàn quốc / chưa xác định vị trí)
+    if (unlocated.length > 0) {
+      const header = h('div', { className: 'outbreak-unlocated-header' },
+        `📍 Chưa xác định vị trí (${unlocated.length})`);
+      this._listEl.appendChild(header);
+      for (const item of unlocated) {
+        this._listEl.appendChild(this._buildRow(item));
+      }
     }
   }
 

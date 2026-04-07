@@ -212,14 +212,19 @@ export async function initApp(): Promise<void> {
     const popup = new MapPopup(mapContainer);
 
     // 8. Wire event bus — outbreak-selected: fly to + show popup
+    const UNLOCATED_PROVINCES = new Set(['Toàn quốc', 'phía Nam', 'ĐBSCL']);
     on('outbreak-selected', (data) => {
       const item = data as DiseaseOutbreakItem;
-      if (item.lat != null && item.lng != null) {
+      const isUnlocated = UNLOCATED_PROVINCES.has(item.province ?? '') || !item.province;
+      if (isUnlocated) {
+        // Zoom out to full Vietnam view for nationwide outbreaks
+        mapShell.flyTo([108.0, 16.0], 5);
+      } else if (item.lat != null && item.lng != null) {
         mapShell.flyTo([item.lng, item.lat], 8);
-        const cx = mapContainer.clientWidth  / 2;
-        const cy = mapContainer.clientHeight / 2;
-        popup.show(item, cx, cy);
       }
+      const cx = mapContainer.clientWidth  / 2;
+      const cy = mapContainer.clientHeight / 2;
+      popup.show(item, cx, cy);
     });
 
     // 9. Respond to window resize

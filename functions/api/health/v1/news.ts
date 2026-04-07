@@ -50,6 +50,8 @@ const RSS_FALLBACK_SOURCES = [
   { name: 'VnExpress',   url: 'https://vnexpress.net/rss/suc-khoe.rss' },
   { name: 'Tuổi Trẻ',   url: 'https://tuoitre.vn/rss/suc-khoe.rss' },
   { name: 'Thanh Niên', url: 'https://thanhnien.vn/rss/suc-khoe.rss' },
+  { name: 'Dân Trí',    url: 'https://dantri.com.vn/rss/suc-khoe.rss' },
+  { name: 'VietnamNet',  url: 'https://vietnamnet.vn/suc-khoe.rss' },
 ];
 
 function extractTag(xml: string, tag: string): string {

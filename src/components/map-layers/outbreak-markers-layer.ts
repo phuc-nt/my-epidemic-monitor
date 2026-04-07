@@ -38,7 +38,11 @@ export function createOutbreakMarkersLayer(
   highlightedProvince?: string | null,
   selectedDate?: string | null,
 ): ScatterplotLayer<DiseaseOutbreakItem> {
-  const data = outbreaks.filter(o => o.lat != null && o.lng != null);
+  // Exclude "Toàn quốc" / unlocated items — they have no meaningful map position
+  const data = outbreaks.filter(o =>
+    o.lat != null && o.lng != null &&
+    o.province !== 'Toàn quốc' && o.province !== 'phía Nam' && o.province !== 'ĐBSCL'
+  );
 
   return new ScatterplotLayer<DiseaseOutbreakItem>({
     id: 'outbreak-markers',
