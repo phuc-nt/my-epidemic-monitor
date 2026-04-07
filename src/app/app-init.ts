@@ -416,18 +416,27 @@ export async function initApp(): Promise<void> {
       outbreaksPanel.updateData(filtered);
     });
 
-    // Day selected on timeline → scroll panel to that day's items (no filtering)
+    // Day selected on timeline — toggle: click active day → show all; click other → filter
     on('day-selected', (data) => {
       const date = data as string;
-      _selectedDate = date;
+      const isDeselect = date === _selectedDate; // clicking already-active day
+      _selectedDate = isDeselect ? todayStr : date;
+
       for (const [day, btn] of tlBtns) {
-        btn.classList.toggle('timeline-day-btn--active', day === date);
+        btn.classList.toggle('timeline-day-btn--active', isDeselect ? day === todayStr : day === date);
       }
-      // Soft highlight on map — today stays prominent, selected day secondary
-      setSelectedDate(date === todayStr ? todayStr : date);
-      // Filter panel to selected day for focused view
-      outbreaksPanel.filterByDate(date);
-      updateSummaryStrip(ctx.outbreaks, date);
+
+      if (isDeselect) {
+        // Deselect → show all 7 days, highlight today on map
+        setSelectedDate(todayStr);
+        outbreaksPanel.filterByDate(null);
+        updateSummaryStrip(ctx.outbreaks);
+      } else {
+        // Select specific day → filter panel, highlight on map
+        setSelectedDate(date);
+        outbreaksPanel.filterByDate(date);
+        updateSummaryStrip(ctx.outbreaks, date);
+      }
     });
 
     // Default: show ALL 7 days — today highlighted on map
