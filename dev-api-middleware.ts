@@ -418,32 +418,51 @@ async function fetchWhoDon(): Promise<unknown[]> {
   });
 }
 
-/** Fetch pipeline hotspots from Mac Mini API server (same logic as Edge function). */
+/** Fetch pipeline hotspots from Cloudflare Worker + D1 (same logic as Edge function). */
 async function fetchPipelineHotspots(): Promise<unknown[]> {
   const apiUrl = process.env.EPIDEMIC_API_URL;
   const apiKey = process.env.EPIDEMIC_API_KEY;
   if (!apiUrl || !apiKey) return [];
-  const today = new Date().toISOString().split('T')[0];
-  const res = await fetch(`${apiUrl}/hotspots?day=${today}`, {
-    headers: { 'X-Api-Key': apiKey },
-    signal: AbortSignal.timeout(10000),
+
+  // Fetch last 7 days in parallel (same as Edge function outbreaks.ts)
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    return d.toISOString().split('T')[0];
   });
-  if (!res.ok) return [];
-  const data = await res.json() as { hotspots: Record<string, unknown>[] };
-  return (data.hotspots ?? []).map((h) => ({
-    id: `pipeline:${h.disease}:${h.province}:${h.day}`,
-    disease: String(h.disease ?? ''),
-    country: 'Vietnam',
-    countryCode: 'VN',
-    alertLevel: (h.peak_alert as string) ?? 'watch',
-    title: `${diseaseLabel(String(h.disease ?? ''))} tại ${h.province}`,
-    summary: `${h.article_count} nguồn (${h.source_types}). Số ca: ${h.peak_cases ?? 'N/A'}`,
-    url: String((h.source_urls as string)?.split('|')[0] ?? ''),
-    publishedAt: new Date(String(h.day)).getTime(),
-    province: String(h.province ?? ''),
-    source: `pipeline:${String(h.source_types ?? '')}`,
-    cases: h.peak_cases ? Number(h.peak_cases) : undefined,
+
+  const results = await Promise.allSettled(days.map(async (day) => {
+    const res = await fetch(`${apiUrl}/hotspots?day=${day}`, {
+      headers: { 'X-Api-Key': apiKey },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as { hotspots: Record<string, unknown>[] };
+    return (data.hotspots ?? []).map((h) => {
+      const districtIdSuf = h.district ? `:${h.district}` : '';
+      return {
+        id: `pipeline:${h.disease}:${h.province}${districtIdSuf}:${h.day}`,
+        disease: String(h.disease ?? ''),
+        country: 'Vietnam',
+        countryCode: 'VN',
+        alertLevel: (h.peak_alert as string) ?? 'watch',
+        title: `${diseaseLabel(String(h.disease ?? ''))} tại ${h.district ? h.district + ', ' : ''}${h.province}`,
+        summary: `${h.article_count} nguồn (${h.source_types}). Số ca: ${h.peak_cases ?? 'N/A'}`,
+        url: String((h.source_urls as string)?.split('|')[0] ?? ''),
+        publishedAt: new Date(String(h.day)).getTime(),
+        province: String(h.province ?? ''),
+        district: h.district ?? undefined,
+        source: `pipeline:${String(h.source_types ?? '')}`,
+        cases: h.peak_cases ? Number(h.peak_cases) : undefined,
+      };
+    });
   }));
+
+  const all: unknown[] = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled') all.push(...r.value);
+  }
+  return all.sort((a: any, b: any) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
 }
 
 async function handleOutbreaks(): Promise<unknown> {

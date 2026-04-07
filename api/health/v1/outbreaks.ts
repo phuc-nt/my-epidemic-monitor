@@ -1,8 +1,8 @@
 /**
- * Disease outbreak proxy — Mac Mini pipeline as primary and sole source.
- * Fetches hotspot data from Mac Mini FastAPI via Cloudflare tunnel.
+ * Disease outbreak proxy — Cloudflare Worker + D1 as primary source.
+ * Fetches hotspot data from Cloudflare Worker (epidemic-api.phucnt.workers.dev).
  * Adds lat/lng from VN_PROVINCES lookup so map markers render correctly.
- * Returns empty array gracefully if Mac Mini is offline.
+ * Returns empty array gracefully if Worker is unreachable.
  */
 import { jsonResponse } from '../../_cors';
 import { getCached, setCached } from '../../_cache';
@@ -130,7 +130,7 @@ function resolveProvinceCoords(province: string): [number, number] | null {
 }
 
 // ---------------------------------------------------------------------------
-// Mac Mini FastAPI — primary data source
+// Cloudflare Worker + D1 — primary data source
 // ---------------------------------------------------------------------------
 interface HotspotItem {
   disease: string;
@@ -218,7 +218,7 @@ export default async function GET(_request: Request): Promise<Response> {
     setCached(CACHE_KEY, payload, CACHE_TTL);
     return jsonResponse(payload, 200, 600);
   } catch (err) {
-    // Mac Mini offline — return empty payload, UI shows "no data" gracefully
+    // Worker unreachable — return empty payload, UI shows "no data" gracefully
     const payload = { outbreaks: [], fetchedAt: Date.now(), sources: [], error: err instanceof Error ? err.message : 'Pipeline offline' };
     return jsonResponse(payload, 200, 60); // short cache so next request retries quickly
   }
