@@ -197,12 +197,18 @@ export async function initApp(): Promise<void> {
     document.body.appendChild(chatOverlay);
     document.body.appendChild(chatFab);
 
-    // Footer — author credit with social links (fixed bottom-left of map)
+    // Footer — prominent author credit card with avatar + social links
     const footer = h('div', { className: 'author-footer' },
-      h('span', { className: 'author-footer-name' }, 'Phúc Nguyễn'),
-      h('a', { href: 'https://github.com/phuc-nt', target: '_blank', rel: 'noopener noreferrer', title: 'GitHub' }, 'GitHub'),
-      h('a', { href: 'https://www.linkedin.com/in/nguyen-trong-phuc', target: '_blank', rel: 'noopener noreferrer', title: 'LinkedIn' }, 'LinkedIn'),
-      h('a', { href: 'https://phucnt.substack.com', target: '_blank', rel: 'noopener noreferrer', title: 'Substack' }, 'Substack'),
+      h('div', { className: 'author-footer-avatar' }, 'PN'),
+      h('div', { className: 'author-footer-info' },
+        h('span', { className: 'author-footer-name' }, 'Phúc Nguyễn'),
+        h('span', { className: 'author-footer-tagline' }, 'Creator · Epidemic Monitor'),
+      ),
+      h('div', { className: 'author-footer-links' },
+        h('a', { href: 'https://github.com/phuc-nt', target: '_blank', rel: 'noopener noreferrer', title: 'GitHub', 'aria-label': 'GitHub' }, 'GH'),
+        h('a', { href: 'https://www.linkedin.com/in/nguyen-trong-phuc', target: '_blank', rel: 'noopener noreferrer', title: 'LinkedIn', 'aria-label': 'LinkedIn' }, 'in'),
+        h('a', { href: 'https://phucnt.substack.com', target: '_blank', rel: 'noopener noreferrer', title: 'Substack', 'aria-label': 'Substack' }, 'SS'),
+      ),
     );
     mapContainer.appendChild(footer);
 
