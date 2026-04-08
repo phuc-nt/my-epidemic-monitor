@@ -7,17 +7,19 @@
 import type { DiseaseOutbreakItem, NewsItem } from '@/types';
 import type { ChatMessage } from '@/types/llm-types';
 import { findDuplicatesByTitle, titleSimilarity } from '@/services/news-dedup-rules';
-import { extractEntitiesRule, extractEntitiesLLM } from '@/services/llm-entity-extraction-service';
+import { extractEntitiesRule } from '@/services/llm-entity-extraction-service';
 import { apiFetch } from '@/services/api-client';
 
-// Cache processed results to avoid re-calling LLM for same input
+// Cache processed results to avoid redundant article fetches per session
 const _processedCache = new Map<string, unknown>();
 
-/** LLM complete function — set by app-init when LLM is available */
-let _completeFn: ((msgs: ChatMessage[]) => Promise<string>) | null = null;
-
-export function setLLMComplete(fn: typeof _completeFn): void {
-  _completeFn = fn;
+/**
+ * Kept as a no-op for backwards compatibility with app-init.
+ * LLM enrichment was removed because it was consuming the user's daily
+ * chat quota on every page load. All processing is now rule-based.
+ */
+export function setLLMComplete(_fn: ((msgs: ChatMessage[]) => Promise<string>) | null): void {
+  // intentional no-op
 }
 
 // ---------------------------------------------------------------------------
@@ -34,12 +36,12 @@ export async function processOutbreaks(outbreaks: DiseaseOutbreakItem[]): Promis
   // Dedup outbreaks by title similarity (same event from different sources)
   deduplicateOutbreaks(outbreaks);
 
-  // LLM enrichment — batch extract missing case/death counts
-  if (_completeFn) {
-    const needsEnrich = outbreaks.filter(o => !o.cases && !_processedCache.has(o.id));
-    if (needsEnrich.length > 0) {
-      await enrichOutbreaksBatch(needsEnrich);
-    }
+  // Rule-based enrichment only.
+  // LLM enrichment was disabled because it called /api/chat for every page
+  // load (~20 requests), exhausting the user's daily chat quota (10/day).
+  const needsEnrich = outbreaks.filter(o => !o.cases && !_processedCache.has(o.id));
+  if (needsEnrich.length > 0) {
+    await enrichOutbreaksBatch(needsEnrich);
   }
 }
 
@@ -211,11 +213,10 @@ async function enrichOutbreaksBatch(items: DiseaseOutbreakItem[]): Promise<void>
         continue;
       }
 
-      // Extract entities from full article text
+      // Extract entities from full article text — rule-based only
+      // (LLM enrichment disabled: was consuming chat daily limit on every page load)
       const fullText = `${item.title} ${item.summary} ${article.body}`;
-      const entities = _completeFn
-        ? await extractEntitiesLLM(fullText, _completeFn)
-        : extractEntitiesRule(fullText);
+      const entities = extractEntitiesRule(fullText);
 
       // Apply extracted data (only override if more specific)
       if (entities.cases != null && !item.cases) item.cases = entities.cases;
@@ -245,55 +246,15 @@ async function enrichOutbreaksBatch(items: DiseaseOutbreakItem[]): Promise<void>
   }
 }
 
+/**
+ * Rule-based news deduplication only.
+ * LLM tier was removed because every page load was consuming the user's
+ * daily chat quota (10 msg/day) — completely unrelated to actual chat usage.
+ */
 async function markDuplicateNews(news: NewsItem[]): Promise<void> {
   const titles = news.map(n => n.title);
-
-  // Tier 1: Rule-based (always runs, fast, no API call)
-  // High confidence threshold — mark these immediately as duplicates
   const rulePairs = findDuplicatesByTitle(titles, 0.5);
   for (const [, j] of rulePairs) {
     if (news[j]) news[j].category = 'duplicate';
-  }
-
-  // Tier 2: LLM for ambiguous pairs (0.25–0.5 similarity range)
-  // Only sends pairs that rule-based didn't already resolve
-  if (!_completeFn) return;
-
-  const maybePairs = findDuplicatesByTitle(titles, 0.25).filter(
-    ([a, b]) => news[a]?.category !== 'duplicate' && news[b]?.category !== 'duplicate',
-  );
-
-  if (maybePairs.length === 0) return;
-
-  const ambiguousText = maybePairs
-    .map(([a, b]) => `A: ${news[a].title}\nB: ${news[b].title}`)
-    .join('\n---\n');
-
-  const prompt = `For each pair below, answer YES if both headlines describe the SAME event, NO if different.
-Return a JSON array of booleans, one per pair.
-
-${ambiguousText}
-
-Return ONLY a JSON array like [true, false, ...].`;
-
-  try {
-    const result = await _completeFn([
-      { role: 'system' as const, content: 'You detect duplicate news headlines. Return only valid JSON array of booleans.' },
-      { role: 'user' as const, content: prompt },
-    ]);
-
-    const json = result.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-    const verdicts = JSON.parse(json);
-
-    if (Array.isArray(verdicts)) {
-      for (let k = 0; k < maybePairs.length; k++) {
-        if (verdicts[k] === true) {
-          const [, j] = maybePairs[k];
-          if (news[j]) news[j].category = 'duplicate';
-        }
-      }
-    }
-  } catch {
-    // LLM unavailable or parse error — rule-based results are sufficient
   }
 }

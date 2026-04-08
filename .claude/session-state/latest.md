@@ -1,11 +1,12 @@
 # Session State
-<!-- Generated: 2026-04-08T08:31:30.740Z -->
+<!-- Generated: 2026-04-08T08:47:57.367Z -->
 <!-- Branch: unknown -->
 <!-- Plan: none -->
 
 ## What Worked (Verified)
-- Fix breaking-news banner overlap - use flexbox layout
-- Add personal PR/footer info section
+- Render markdown in AI response
+- Add 'thinking' indicator while waiting for LLM response
+- Enforce 10 messages/day per user (browser-based)
 - Build, deploy, test
 
 ## What's Left
