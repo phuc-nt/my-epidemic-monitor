@@ -202,29 +202,50 @@
 }
 
 /* ============================================================
-   Floating Chat Widget
+   Floating Chat Widget — minimal + subtle pulse animation
    ============================================================ */
 .chat-fab {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: var(--accent, #2563eb);
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   color: #fff;
   border: none;
-  font-size: 24px;
+  font-size: 26px;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
   z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.35), 0 0 0 0 rgba(59,130,246,0.5);
+  animation: chat-fab-pulse 2.4s ease-out infinite;
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.chat-fab:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
-.chat-fab--open { background: var(--alert, #dc2626); }
+.chat-fab:hover {
+  transform: scale(1.08) rotate(-4deg);
+  animation-play-state: paused;
+}
+.chat-fab:active { transform: scale(0.96); }
+.chat-fab--open {
+  background: #64748b;
+  animation: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* Ring pulse ripple effect */
+@keyframes chat-fab-pulse {
+  0%   { box-shadow: 0 4px 16px rgba(59,130,246,0.35), 0 0 0 0 rgba(59,130,246,0.5); }
+  70%  { box-shadow: 0 4px 16px rgba(59,130,246,0.35), 0 0 0 16px rgba(59,130,246,0); }
+  100% { box-shadow: 0 4px 16px rgba(59,130,246,0.35), 0 0 0 0 rgba(59,130,246,0); }
+}
+
+/* Hide panel header resize/collapse controls when chat is in floating overlay */
+.chat-overlay .panel-header-right {
+  display: none !important;
+}
 
 .chat-overlay {
   position: fixed;
