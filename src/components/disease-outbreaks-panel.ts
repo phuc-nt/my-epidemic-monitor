@@ -37,7 +37,8 @@ export class DiseaseOutbreaksPanel extends Panel {
   private _escalations: Set<string> = new Set();
   private _filter: AlertLevel | null = null;
   private _search = '';
-  private _showAll = false;
+  private _showAllLocated = false;
+  private _showAllUnlocated = false;
   private _provinceFilter: string | null = null;
   private _dateFilter: string | null = null; // YYYY-MM-DD
   private _filterBar: HTMLElement;
@@ -76,7 +77,9 @@ export class DiseaseOutbreaksPanel extends Panel {
    */
   filterByProvince(province: string | null): void {
     this._provinceFilter = province;
-    this._showAll = province !== null; // auto-expand when province selected
+    // Auto-expand both columns when a province is selected
+    this._showAllLocated = province !== null;
+    this._showAllUnlocated = province !== null;
     this._syncProvinceChip();
     this._render();
     emit('province-filter-changed', province);
@@ -85,7 +88,8 @@ export class DiseaseOutbreaksPanel extends Panel {
   /** Filter list to a specific date (YYYY-MM-DD). Pass null to show all. */
   filterByDate(date: string | null): void {
     this._dateFilter = date;
-    this._showAll = false;
+    this._showAllLocated = false;
+    this._showAllUnlocated = false;
     this._render();
   }
 
@@ -233,33 +237,37 @@ export class DiseaseOutbreaksPanel extends Panel {
       h('div', { className: 'outbreak-col-header' }, `🌐 Toàn quốc / chưa rõ (${unlocated.length})`));
 
     const MAX_VISIBLE = 5;
-    const visibleLocated = this._showAll ? located : located.slice(0, MAX_VISIBLE);
+
+    // Located column
+    const visibleLocated = this._showAllLocated ? located : located.slice(0, MAX_VISIBLE);
     for (const item of visibleLocated) {
       leftCol.appendChild(this._buildRow(item));
     }
-
-    // "Show more" button for located column
-    if (!this._showAll && located.length > MAX_VISIBLE) {
-      const more = h('button', { className: 'outbreak-show-more' },
-        `Xem thêm (${located.length - MAX_VISIBLE} mục)`);
-      more.addEventListener('click', () => { this._showAll = true; this._render(); });
-      leftCol.appendChild(more);
-    } else if (this._showAll && located.length > MAX_VISIBLE) {
-      const less = h('button', { className: 'outbreak-show-more' }, 'Thu gọn');
-      less.addEventListener('click', () => { this._showAll = false; this._render(); });
-      leftCol.appendChild(less);
+    if (located.length > MAX_VISIBLE) {
+      const remaining = located.length - MAX_VISIBLE;
+      const label = this._showAllLocated ? 'Thu gọn' : `Xem thêm (${remaining} mục)`;
+      const btn = h('button', { className: 'outbreak-show-more' }, label);
+      btn.addEventListener('click', () => {
+        this._showAllLocated = !this._showAllLocated;
+        this._render();
+      });
+      leftCol.appendChild(btn);
     }
 
-    // Unlocated column — also supports "show more" cap for long lists
-    const visibleUnlocated = this._showAll ? unlocated : unlocated.slice(0, MAX_VISIBLE);
+    // Unlocated column
+    const visibleUnlocated = this._showAllUnlocated ? unlocated : unlocated.slice(0, MAX_VISIBLE);
     for (const item of visibleUnlocated) {
       rightCol.appendChild(this._buildRow(item));
     }
-    if (!this._showAll && unlocated.length > MAX_VISIBLE) {
-      const more = h('button', { className: 'outbreak-show-more' },
-        `Xem thêm (${unlocated.length - MAX_VISIBLE} mục)`);
-      more.addEventListener('click', () => { this._showAll = true; this._render(); });
-      rightCol.appendChild(more);
+    if (unlocated.length > MAX_VISIBLE) {
+      const remaining = unlocated.length - MAX_VISIBLE;
+      const label = this._showAllUnlocated ? 'Thu gọn' : `Xem thêm (${remaining} mục)`;
+      const btn = h('button', { className: 'outbreak-show-more' }, label);
+      btn.addEventListener('click', () => {
+        this._showAllUnlocated = !this._showAllUnlocated;
+        this._render();
+      });
+      rightCol.appendChild(btn);
     }
 
     if (located.length === 0) leftCol.appendChild(h('p', { className: 'outbreak-empty' }, 'Không có'));
