@@ -331,9 +331,9 @@ export async function initApp(): Promise<void> {
     async function refreshData(silent = false): Promise<void> {
       const fresh = await fetchAllData();
       applyData(fresh.outbreaks, fresh.stats, fresh.news);
-      // Re-run LLM pipeline (entity extraction, dedup) on fresh data
-      void processOutbreaks(fresh.outbreaks);
-      void processNews(fresh.news);
+      // Re-run LLM pipeline on copies to avoid mutating panel-held arrays
+      void processOutbreaks([...fresh.outbreaks]);
+      void processNews([...fresh.news]);
       // Accumulate snapshot for historical timeline
       void saveSnapshot(fresh.outbreaks);
       if (!silent) console.info(`[EpidemicMonitor] Refreshed — ${fresh.outbreaks.length} outbreaks, ${fresh.news.length} news`);
@@ -497,9 +497,10 @@ export async function initApp(): Promise<void> {
         // Wire data pipeline LLM functions
         setLLMComplete(complete);
 
-        // Run data pipeline cleanup
-        void processOutbreaks(outbreaks);
-        void processNews(news);
+        // Run data pipeline cleanup on a COPY to avoid mutating shared state
+        // (panels hold references to the original arrays)
+        void processOutbreaks([...outbreaks]);
+        void processNews([...news]);
 
         // Wire chat send → LLM streaming
         chatPanel.onSend = (text) => {

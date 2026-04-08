@@ -101,8 +101,13 @@ export class DiseaseOutbreaksPanel extends Panel {
 
   /** Called by app-init when fresh outbreak data arrives. */
   updateData(outbreaks: DiseaseOutbreakItem[]): void {
-    this._outbreaks = outbreaks;
-    this.setCount(outbreaks.length);
+    // Copy the array to prevent external mutation (e.g. dedup in processOutbreaks)
+    // from changing our internal state behind our back.
+    this._outbreaks = [...outbreaks];
+    this.setCount(this._outbreaks.length);
+    // Reset expanded state so "Xem thêm" count stays consistent with new data
+    this._showAllLocated = false;
+    this._showAllUnlocated = false;
     // Re-mount toolbar + list (showLoading may have wiped content)
     this._remount();
     this._render();
