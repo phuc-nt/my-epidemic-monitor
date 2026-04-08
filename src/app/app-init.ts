@@ -197,6 +197,15 @@ export async function initApp(): Promise<void> {
     document.body.appendChild(chatOverlay);
     document.body.appendChild(chatFab);
 
+    // Footer — author credit with social links (fixed bottom-left of map)
+    const footer = h('div', { className: 'author-footer' },
+      h('span', { className: 'author-footer-name' }, 'Phúc Nguyễn'),
+      h('a', { href: 'https://github.com/phuc-nt', target: '_blank', rel: 'noopener noreferrer', title: 'GitHub' }, 'GitHub'),
+      h('a', { href: 'https://www.linkedin.com/in/nguyen-trong-phuc', target: '_blank', rel: 'noopener noreferrer', title: 'LinkedIn' }, 'LinkedIn'),
+      h('a', { href: 'https://phucnt.substack.com', target: '_blank', rel: 'noopener noreferrer', title: 'Substack' }, 'Substack'),
+    );
+    mapContainer.appendChild(footer);
+
     // 5. Store panel refs in context
     ctx.panels.set(outbreaksPanel.id, outbreaksPanel);
     ctx.panels.set(climatePanel.id,   climatePanel);
