@@ -104,3 +104,53 @@
 }
 .chat-send-btn:hover { opacity: 0.9; }
 .chat-send-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ============================================================
+   Floating Chat Widget
+   ============================================================ */
+.chat-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent, #2563eb);
+  color: #fff;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.chat-fab:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+.chat-fab--open { background: var(--alert, #dc2626); }
+
+.chat-overlay {
+  position: fixed;
+  bottom: 90px;
+  right: 24px;
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  height: 520px;
+  max-height: calc(100vh - 130px);
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  z-index: 998;
+  display: none;
+  overflow: hidden;
+}
+.chat-overlay--open { display: block; }
+.chat-overlay .panel { height: 100%; box-shadow: none; border: none; border-radius: 12px; }
+.chat-overlay .panel-content { height: calc(100% - 40px); }
+
+@media (max-width: 600px) {
+  .chat-overlay { width: calc(100vw - 24px); right: 12px; bottom: 80px; }
+  .chat-fab { right: 16px; bottom: 16px; }
+}

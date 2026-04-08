@@ -15,7 +15,6 @@ import { ctx, on, emit } from '@/app/app-context';
 
 import { DiseaseOutbreaksPanel } from '@/components/disease-outbreaks-panel';
 import { EpidemicStatisticsPanel } from '@/components/epidemic-statistics-panel';
-import { CountryHealthPanel } from '@/components/country-health-panel';
 import { TrendChartPanel } from '@/components/trend-chart-panel';
 import { MapPopup } from '@/components/map-popup';
 import { MapLayerControls } from '@/components/map-layer-controls';
@@ -29,7 +28,6 @@ import { fetchBulkData, invalidateBulkCache } from '@/services/bulk-data-service
 import { NewsFeedPanel } from '@/components/news-feed-panel';
 import { ChatPanel } from '@/components/chat-panel';
 import { ClimateAlertsPanel } from '@/components/climate-alerts-panel';
-import { CaseReportPanel } from '@/components/case-report-panel';
 import { diseaseLabel } from '@/components/case-report-panel-data';
 import { initLLM, chat } from '@/services/llm-router';
 import { buildMessages } from '@/services/llm-context-builder';
@@ -40,9 +38,6 @@ import { initSnapshotDB, saveSnapshot, getRecentSnapshots, pruneOldSnapshots } f
 import { computeStatsDelta, computeAllTrends, detectEscalations, detectEarlyWarnings } from '@/services/trend-calculator';
 import { setEarlyWarnings, setDistrictGeoJson, setHighlightedProvince, setSelectedDate } from '@/components/map-layers/index';
 import { BreakingNewsBanner } from '@/components/breaking-news-banner';
-import { CrossSourceSignalsPanel } from '@/components/cross-source-signals-panel';
-import { ProvinceDeepDivePanel } from '@/components/province-deep-dive-panel';
-import { detectCrossSourceSignals } from '@/services/cross-source-signal-service';
 import type { DiseaseOutbreakItem, EpidemicStats, NewsItem } from '@/types';
 
 export async function initApp(): Promise<void> {
@@ -54,26 +49,19 @@ export async function initApp(): Promise<void> {
     const mapShell = new MapShell('map');
     ctx.map = mapShell;
 
-    // 3. Instantiate panels
+    // 3. Instantiate panels (slim layout — chat is floating, not tabbed)
     const outbreaksPanel = new DiseaseOutbreaksPanel();
     const statsPanel     = new EpidemicStatisticsPanel();
-    const countryPanel   = new CountryHealthPanel();
     const trendPanel     = new TrendChartPanel();
     const newsPanel      = new NewsFeedPanel();
     const chatPanel      = new ChatPanel();
     const climatePanel   = new ClimateAlertsPanel();
-    const caseReportPanel = new CaseReportPanel();
-    const signalsPanel   = new CrossSourceSignalsPanel();
-    const provinceDive   = new ProvinceDeepDivePanel();
     const banner         = new BreakingNewsBanner();
 
-    // 4. Mount panels into tabbed groups
-    // Dashboard: focused on active outbreak monitoring (outbreaks + climate risk)
-    // Analysis:  deeper investigation tools (stats, news, signals, trends, etc.)
+    // 4. Mount panels into 2 tabs (Tools tab removed; Case Report removed)
     const tabGroups: Record<string, { label: string; panels: HTMLElement[] }> = {
       dashboard: { label: 'Dashboard', panels: [outbreaksPanel.el, climatePanel.el] },
-      analysis:  { label: 'Analysis',  panels: [statsPanel.el, newsPanel.el, signalsPanel.el, provinceDive.el, trendPanel.el, countryPanel.el] },
-      tools:     { label: 'Tools',     panels: [caseReportPanel.el, chatPanel.el] },
+      analysis:  { label: 'Analysis',  panels: [statsPanel.el, newsPanel.el, trendPanel.el] },
     };
 
     // Build tab bar
@@ -193,17 +181,29 @@ export async function initApp(): Promise<void> {
     }
     showTab('dashboard');
 
+    // Mount floating chat widget — chat icon (FAB) + collapsible overlay
+    const chatOverlay = h('div', { className: 'chat-overlay' }, chatPanel.el);
+    const chatFab = h('button', {
+      className: 'chat-fab',
+      title: 'AI Assistant — Hỏi đáp về dữ liệu dịch bệnh',
+    }, '💬');
+    let chatOpen = false;
+    chatFab.addEventListener('click', () => {
+      chatOpen = !chatOpen;
+      chatOverlay.classList.toggle('chat-overlay--open', chatOpen);
+      chatFab.classList.toggle('chat-fab--open', chatOpen);
+      chatFab.textContent = chatOpen ? '✕' : '💬';
+    });
+    document.body.appendChild(chatOverlay);
+    document.body.appendChild(chatFab);
+
     // 5. Store panel refs in context
     ctx.panels.set(outbreaksPanel.id, outbreaksPanel);
     ctx.panels.set(climatePanel.id,   climatePanel);
     ctx.panels.set(statsPanel.id,     statsPanel);
     ctx.panels.set(newsPanel.id,      newsPanel);
-    ctx.panels.set(caseReportPanel.id, caseReportPanel);
     ctx.panels.set(chatPanel.id,      chatPanel);
-    ctx.panels.set(countryPanel.id,   countryPanel);
     ctx.panels.set(trendPanel.id,     trendPanel);
-    ctx.panels.set(signalsPanel.id,  signalsPanel);
-    ctx.panels.set(provinceDive.id,  provinceDive);
 
     // 6. Mount map layer controls (top-left overlay on the map)
     new MapLayerControls(mapContainer);
@@ -279,10 +279,6 @@ export async function initApp(): Promise<void> {
       // Update timeline count badges + summary strip with latest data
       updateTimelineCounts(outbreaks);
       updateSummaryStrip(outbreaks); // show all 7-day summary by default
-
-      // Cross-source signal detection
-      const signals = detectCrossSourceSignals(outbreaks, news);
-      signalsPanel.updateData(signals, outbreaks);
 
       // Breaking news banner
       const alertOutbreaks = outbreaks.filter(o => o.alertLevel === 'alert');
@@ -460,7 +456,6 @@ export async function initApp(): Promise<void> {
     // 12. Fetch climate forecasts + compute early warnings (non-blocking)
     fetchClimateForecasts().then((forecasts) => {
       climatePanel.updateData(forecasts);
-      provinceDive.setClimate(forecasts);
 
       // Early warnings: provinces with HIGH climate risk but NO active outbreak
       const outbreakProvinces = new Set(outbreaks.map(o => o.country));
