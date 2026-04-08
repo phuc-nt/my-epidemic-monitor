@@ -10,8 +10,7 @@
 
 <p align="center">
   <a href="https://epidemic-monitor.pages.dev"><strong>🌐 Mở app</strong></a> ·
-  <a href="product-docs/"><strong>📖 Product docs</strong></a> ·
-  <a href="docs/"><strong>🛠 Tài liệu kỹ thuật</strong></a> ·
+  <a href="https://phuc-nt.github.io/my-epidemic-monitor/"><strong>📖 Docs</strong></a> ·
   <a href="https://github.com/phuc-nt/epidemic-monitor-pipeline"><strong>⚙️ Pipeline repo</strong></a>
 </p>
 
@@ -38,7 +37,7 @@ Epidemic Monitor đọc giùm bạn — quét báo chí Việt Nam, YouTube và 
 | 📍 **Chế độ huyện** | Marker chính xác đến cấp huyện khi báo có nhắc, cho field team |
 | 🚨 **Breaking news** | Banner đỏ cho cảnh báo cao, tự ẩn sau 30s |
 
-Xem [product-docs](product-docs/) để biết chi tiết về từng tính năng.
+Xem [docs](docs/) để biết chi tiết về từng tính năng.
 
 ## Quick Start (developer)
 
@@ -121,8 +120,7 @@ functions/api/health/v1/   # Cloudflare Pages Functions
   ├── climate.ts           # Open-Meteo proxy
   └── _middleware.ts       # Origin protection cho mọi /api/*
 
-product-docs/        # Tài liệu cho người dùng cuối (Jekyll + just-the-docs)
-docs/                # Tài liệu nội bộ — kỹ thuật, devlogs, research
+docs/                # Product docs (Jekyll + just-the-docs → GitHub Pages)
 e2e/                 # 29 Playwright tests
 assets/              # Logo + tài nguyên
 ```
@@ -131,15 +129,17 @@ assets/              # Logo + tài nguyên
 
 ### Cho người dùng cuối
 
+Published qua GitHub Pages: [**phuc-nt.github.io/my-epidemic-monitor**](https://phuc-nt.github.io/my-epidemic-monitor/)
+
 | Page | Nội dung |
 |------|----------|
-| [product-docs/index.md](product-docs/index.md) | Trang chủ — câu chuyện đằng sau |
-| [product-docs/why.md](product-docs/why.md) | Vì sao có dự án này |
-| [product-docs/core-features.md](product-docs/core-features.md) | 10 tính năng chính |
+| [docs/index.md](docs/index.md) | Trang chủ — câu chuyện đằng sau |
+| [docs/why.md](docs/why.md) | Vì sao có dự án này |
+| [docs/core-features.md](docs/core-features.md) | 10 tính năng chính |
 
 ### Cho developer
 
-Tài liệu kỹ thuật chi tiết (kiến trúc, AI features, devlog, roadmap) sống trong workspace nội bộ và không có trong repo public này. Để hiểu nhanh, đọc:
+Tài liệu kỹ thuật nội bộ không public. Để hiểu nhanh kiến trúc, đọc:
 
 - Section **Kiến trúc tóm tắt** ở trên
 - Code comments trong [src/app/app-init.ts](src/app/app-init.ts) (bootstrap logic)
