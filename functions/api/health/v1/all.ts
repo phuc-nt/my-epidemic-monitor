@@ -2,13 +2,23 @@
  * Bulk data endpoint — returns outbreaks + stats + news in a single request.
  * Reduces 3 separate function invocations to 1, saving ~67% of CF Pages quota.
  * D1 queries for outbreaks and news run in parallel.
+ *
+ * Caching strategy (2 layers):
+ * 1. Cloudflare edge cache via Cache API — shared across all users at a POP,
+ *    5-min TTL. Serves from edge with 0 D1 reads and 0 function CPU after miss.
+ * 2. In-memory function cache — per-instance fallback for warm Workers not
+ *    covered by edge cache yet (cold-start scenarios).
+ *
+ * Also emits strong ETag for client-side If-None-Match → 304 (saves bandwidth
+ * on repeat visits from the same user).
  */
-import { jsonResponse, errorResponse } from '../../../_shared/cors';
+import { errorResponse } from '../../../_shared/cors';
 import { getCached, setCached } from '../../../_shared/cache';
 import { fetchOutbreaksFromD1, type OutbreakItem } from '../../../_shared/outbreak-query';
 
 const CACHE_KEY = 'all-data';
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes in-memory
+const EDGE_CACHE_TTL_SEC = 300; // 5 minutes at CF edge
 const NEWS_LIMIT = 50;
 
 interface NewsItem {
@@ -66,9 +76,60 @@ async function fetchNews(db: D1Database): Promise<NewsItem[]> {
   }));
 }
 
+/** Build the cacheable response with strong ETag + Cache-Control headers. */
+function buildCachedResponse(payload: unknown): Response {
+  const body = JSON.stringify(payload);
+  // Strong ETag: FNV-1a 32-bit hash of body bytes. Cheap, deterministic,
+  // collision-resistant enough for HTTP caching purposes.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < body.length; i++) {
+    hash = Math.imul(hash ^ body.charCodeAt(i), 0x01000193) >>> 0;
+  }
+  const etag = `"${hash.toString(16).padStart(8, '0')}-${body.length.toString(16)}"`;
+
+  return new Response(body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      // s-maxage controls CF edge cache; max-age controls browser cache.
+      // stale-while-revalidate lets edge serve stale for 10 min while refreshing.
+      'Cache-Control': `public, max-age=60, s-maxage=${EDGE_CACHE_TTL_SEC}, stale-while-revalidate=600`,
+      'ETag': etag,
+      // Vary by Origin so auth/non-auth requests don't share cache entries.
+      'Vary': 'Origin',
+    },
+  });
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { request } = context;
+
+  // Layer 1: CF edge cache (Cache API) — shared across all users at a POP.
+  // Cache key is URL-only; origin gating happens in _middleware.ts BEFORE
+  // this handler, so only authorized requests can populate/read the cache.
+  const cache = (caches as unknown as { default: Cache }).default;
+  const cacheUrl = new URL(request.url);
+  const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
+
+  const edgeHit = await cache.match(cacheKey);
+  if (edgeHit) {
+    // Honor client If-None-Match → 304 for bandwidth savings.
+    const ifNoneMatch = request.headers.get('If-None-Match');
+    const etag = edgeHit.headers.get('ETag');
+    if (ifNoneMatch && etag && ifNoneMatch === etag) {
+      return new Response(null, { status: 304, headers: { ETag: etag, Vary: 'Origin' } });
+    }
+    return edgeHit;
+  }
+
+  // Layer 2: In-memory per-instance cache (covers cold-start race to populate edge).
   const cached = getCached<unknown>(CACHE_KEY);
-  if (cached) return jsonResponse(cached, 200, 600);
+  if (cached) {
+    const resp = buildCachedResponse(cached);
+    // Populate edge cache asynchronously so next request at this POP is a hit.
+    context.waitUntil(cache.put(cacheKey, resp.clone()));
+    return resp;
+  }
 
   try {
     // Parallel: outbreaks (7 D1 queries) + news (1 D1 query)
@@ -86,7 +147,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     };
 
     setCached(CACHE_KEY, payload, CACHE_TTL);
-    return jsonResponse(payload, 200, 600);
+    const resp = buildCachedResponse(payload);
+    // Populate edge cache for subsequent requests.
+    context.waitUntil(cache.put(cacheKey, resp.clone()));
+    return resp;
   } catch (err) {
     return errorResponse(err instanceof Error ? err.message : 'Bulk fetch failed');
   }
