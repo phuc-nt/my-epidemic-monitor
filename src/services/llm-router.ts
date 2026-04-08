@@ -12,6 +12,7 @@
 import { getJSON, setJSON } from '@/utils/storage';
 import { emit, on, off } from '@/app/app-context';
 import type { LLMProvider, LLMProviderType, ChatMessage } from '@/types/llm-types';
+import { createProxyProvider } from '@/services/llm-provider-proxy';
 import { createOpenRouterProvider } from '@/services/llm-provider-openrouter';
 import { createOllamaProvider } from '@/services/llm-provider-ollama';
 import { createMlxProvider } from '@/services/llm-provider-mlx';
@@ -30,12 +31,17 @@ let _providers: LLMProvider[] = [];
 export async function initLLM(): Promise<LLMProvider | null> {
   const candidates: LLMProvider[] = [];
 
-  // Build candidate list
+  // Priority 1: Proxy provider (server-side key via /api/chat) — always first choice
+  candidates.push(createProxyProvider());
+
+  // Priority 2: User's own OpenRouter key (if set)
   const orKey = getJSON<string>('openrouter-api-key', '');
   if (orKey) {
     const orModel = getJSON<string>('openrouter-model', 'minimax/minimax-m2.7');
     candidates.push(createOpenRouterProvider(orKey, orModel));
   }
+
+  // Priority 3: Local LLMs
   candidates.push(createOllamaProvider());
   candidates.push(createMlxProvider());
 

@@ -311,6 +311,13 @@ html, body {
 .outbreak-row-link:hover { text-decoration: underline; }
 .outbreak-empty { color: var(--text-muted); font-size: 12px; text-align: center; padding: 12px; }
 .outbreak-unlocated-header { font-size: 11px; color: var(--text-muted); padding: 8px 4px 4px; border-top: 1px solid var(--border); margin-top: 6px; font-weight: 600; }
+
+/* 2-column grid: located vs unlocated outbreaks */
+.outbreak-2col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.outbreak-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.outbreak-col-header { font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 2px 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.outbreak-col--unlocated .outbreak-row { opacity: 0.85; }
+@media (max-width: 900px) { .outbreak-2col-grid { grid-template-columns: 1fr; } }
 .outbreak-show-more {
   display: block; width: 100%; padding: 6px; margin-top: 4px;
   border: 1px dashed var(--border); border-radius: var(--radius);

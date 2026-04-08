@@ -1,6 +1,6 @@
 /** LLM provider types and interfaces for the epidemic monitor AI chatbox. */
 
-export type LLMProviderType = 'openrouter' | 'ollama' | 'mlx';
+export type LLMProviderType = 'proxy' | 'openrouter' | 'ollama' | 'mlx';
 
 export interface LLMProviderConfig {
   type: LLMProviderType;

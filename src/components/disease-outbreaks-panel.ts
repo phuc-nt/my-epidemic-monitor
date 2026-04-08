@@ -226,34 +226,47 @@ export class DiseaseOutbreaksPanel extends Panel {
     const located = items.filter(o => !this._isUnlocated(o));
     const unlocated = items.filter(o => this._isUnlocated(o));
 
-    // Render located items first
+    // Build 2-column layout: left = located, right = unlocated
+    const leftCol = h('div', { className: 'outbreak-col outbreak-col--located' },
+      h('div', { className: 'outbreak-col-header' }, `📍 Có vị trí (${located.length})`));
+    const rightCol = h('div', { className: 'outbreak-col outbreak-col--unlocated' },
+      h('div', { className: 'outbreak-col-header' }, `🌐 Toàn quốc / chưa rõ (${unlocated.length})`));
+
     const MAX_VISIBLE = 5;
-    const visible = this._showAll ? located : located.slice(0, MAX_VISIBLE);
-    for (const item of visible) {
-      this._listEl.appendChild(this._buildRow(item));
+    const visibleLocated = this._showAll ? located : located.slice(0, MAX_VISIBLE);
+    for (const item of visibleLocated) {
+      leftCol.appendChild(this._buildRow(item));
     }
 
-    // "Show more" button for located items
+    // "Show more" button for located column
     if (!this._showAll && located.length > MAX_VISIBLE) {
       const more = h('button', { className: 'outbreak-show-more' },
         `Xem thêm (${located.length - MAX_VISIBLE} mục)`);
       more.addEventListener('click', () => { this._showAll = true; this._render(); });
-      this._listEl.appendChild(more);
+      leftCol.appendChild(more);
     } else if (this._showAll && located.length > MAX_VISIBLE) {
       const less = h('button', { className: 'outbreak-show-more' }, 'Thu gọn');
       less.addEventListener('click', () => { this._showAll = false; this._render(); });
-      this._listEl.appendChild(less);
+      leftCol.appendChild(less);
     }
 
-    // Render unlocated section (Toàn quốc / chưa xác định vị trí)
-    if (unlocated.length > 0) {
-      const header = h('div', { className: 'outbreak-unlocated-header' },
-        `📍 Chưa xác định vị trí (${unlocated.length})`);
-      this._listEl.appendChild(header);
-      for (const item of unlocated) {
-        this._listEl.appendChild(this._buildRow(item));
-      }
+    // Unlocated column — also supports "show more" cap for long lists
+    const visibleUnlocated = this._showAll ? unlocated : unlocated.slice(0, MAX_VISIBLE);
+    for (const item of visibleUnlocated) {
+      rightCol.appendChild(this._buildRow(item));
     }
+    if (!this._showAll && unlocated.length > MAX_VISIBLE) {
+      const more = h('button', { className: 'outbreak-show-more' },
+        `Xem thêm (${unlocated.length - MAX_VISIBLE} mục)`);
+      more.addEventListener('click', () => { this._showAll = true; this._render(); });
+      rightCol.appendChild(more);
+    }
+
+    if (located.length === 0) leftCol.appendChild(h('p', { className: 'outbreak-empty' }, 'Không có'));
+    if (unlocated.length === 0) rightCol.appendChild(h('p', { className: 'outbreak-empty' }, 'Không có'));
+
+    const grid = h('div', { className: 'outbreak-2col-grid' }, leftCol, rightCol);
+    this._listEl.appendChild(grid);
   }
 
   private _buildRow(item: DiseaseOutbreakItem): HTMLElement {

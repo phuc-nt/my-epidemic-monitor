@@ -1,14 +1,14 @@
 # Session State
-<!-- Generated: 2026-04-07T23:21:24.054Z -->
+<!-- Generated: 2026-04-08T04:44:39.213Z -->
 <!-- Branch: unknown -->
 <!-- Plan: none -->
 
 ## What Worked (Verified)
-- Separate 'Toàn quốc' outbreaks from map + create dedicated panel section
-- Vietnamese-only news/video sources in RSS fallback
-- Add retention cleanup script (SQLite + D1, >30 days)
-- Setup GitHub auto-deploy for Cloudflare Pages
-- Build, deploy, commit, push
+- Create floating chat icon + overlay panel
+- Set default LLM to minimax-m2.7 via OpenRouter
+- Remove Tools tab + Case Report panel
+- Trim Analysis tab (remove CrossSignals + ProvinceDive permanent slots)
+- Test on browser, commit, push
 
 ## What's Left
 - (All tasks completed)
