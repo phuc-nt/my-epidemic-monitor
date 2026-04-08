@@ -106,6 +106,102 @@
 .chat-send-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* ============================================================
+   Markdown rendering inside assistant messages
+   ============================================================ */
+.chat-msg--assistant .chat-msg-content p { margin: 0 0 6px; }
+.chat-msg--assistant .chat-msg-content p:last-child { margin-bottom: 0; }
+.chat-msg--assistant .chat-msg-content strong { font-weight: 700; }
+.chat-msg--assistant .chat-msg-content em { font-style: italic; }
+.chat-msg--assistant .chat-msg-content ul,
+.chat-msg--assistant .chat-msg-content ol { margin: 4px 0 6px; padding-left: 20px; }
+.chat-msg--assistant .chat-msg-content li { margin: 2px 0; }
+.chat-msg--assistant .chat-msg-content code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+}
+.chat-msg--assistant .chat-msg-content pre {
+  background: rgba(0,0,0,0.06);
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.chat-msg--assistant .chat-msg-content pre code { background: none; padding: 0; }
+.chat-msg--assistant .chat-msg-content h1,
+.chat-msg--assistant .chat-msg-content h2,
+.chat-msg--assistant .chat-msg-content h3,
+.chat-msg--assistant .chat-msg-content h4 {
+  margin: 8px 0 4px; font-weight: 700; font-size: 14px;
+}
+.chat-msg--assistant .chat-msg-content blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 8px;
+  margin: 4px 0;
+  color: var(--text-muted);
+}
+.chat-msg--assistant .chat-msg-content a {
+  color: var(--accent, #2563eb);
+  text-decoration: underline;
+}
+.chat-msg--assistant .chat-msg-content table {
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.chat-msg--assistant .chat-msg-content th,
+.chat-msg--assistant .chat-msg-content td {
+  border: 1px solid var(--border);
+  padding: 3px 6px;
+}
+
+/* ============================================================
+   Thinking indicator — animated dots
+   ============================================================ */
+.chat-msg--thinking .chat-msg-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chat-thinking-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.chat-thinking-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: chat-thinking-bounce 1.2s infinite ease-in-out;
+}
+.chat-thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+.chat-thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+.chat-thinking-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+@keyframes chat-thinking-bounce {
+  0%, 60%, 100% { transform: scale(0.7); opacity: 0.4; }
+  30% { transform: scale(1); opacity: 1; }
+}
+
+/* Rate limit notice */
+.chat-rate-limit-notice {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--alert, #dc2626);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  margin: 4px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+/* ============================================================
    Floating Chat Widget
    ============================================================ */
 .chat-fab {

@@ -1,7 +1,22 @@
 import '@/styles/chat.css';
 import { Panel } from '@/components/panel-base';
 import { h } from '@/utils/dom-utils';
-import { escapeHtml } from '@/utils/sanitize';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+// Configure marked for compact, streaming-friendly rendering
+marked.setOptions({ gfm: true, breaks: true });
+
+/** Render markdown to sanitized HTML. */
+function renderMarkdown(src: string): string {
+  const raw = marked.parse(src, { async: false }) as string;
+  return DOMPurify.sanitize(raw, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li',
+                   'blockquote', 'h1', 'h2', 'h3', 'h4', 'a', 'hr', 'table',
+                   'thead', 'tbody', 'tr', 'th', 'td'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+  });
+}
 
 interface ChatMsg {
   role: 'user' | 'assistant';
@@ -20,6 +35,7 @@ export class ChatPanel extends Panel {
   private _sendBtn: HTMLButtonElement;
   private _statusEl: HTMLElement;
   private _isStreaming = false;
+  private _thinkingEl: HTMLElement | null = null;
 
   /** Wired by app-init when LLM provider is ready. */
   public onSend: ((text: string) => void) | null = null;
@@ -92,6 +108,8 @@ export class ChatPanel extends Panel {
    */
   appendChunk(text: string): void {
     if (!this._isStreaming) {
+      // Hide "thinking" indicator now that the first token arrived
+      this._hideThinking();
       // Start new assistant message element
       this._messages.push({ role: 'assistant', content: '' });
       this._messagesEl.appendChild(this._createMessageEl('assistant', ''));
@@ -102,11 +120,11 @@ export class ChatPanel extends Panel {
     const last = this._messages[this._messages.length - 1];
     last.content += text;
 
-    // Update the DOM element's content span
+    // Render markdown progressively (live HTML update)
     const lastEl = this._messagesEl.lastElementChild;
     if (lastEl) {
       const contentEl = lastEl.querySelector('.chat-msg-content');
-      if (contentEl) contentEl.textContent = last.content;
+      if (contentEl) contentEl.innerHTML = renderMarkdown(last.content);
     }
 
     this._scrollToBottom();
@@ -115,6 +133,7 @@ export class ChatPanel extends Panel {
   /** Signal that streaming is complete; re-enable input. */
   endStreaming(): void {
     this._isStreaming = false;
+    this._hideThinking();
     this._inputEl.disabled = false;
     this._sendBtn.disabled = false;
     this._inputEl.focus();
@@ -142,6 +161,7 @@ export class ChatPanel extends Panel {
     this._sendBtn.disabled = true;
 
     if (this.onSend) {
+      this._showThinking();
       this.onSend(text);
     } else {
       // LLM not yet wired — show fallback message
@@ -165,13 +185,43 @@ export class ChatPanel extends Panel {
 
   private _createMessageEl(role: 'user' | 'assistant', content: string): HTMLElement {
     const label = role === 'user' ? 'You' : 'AI';
+    const contentEl = h('div', { className: 'chat-msg-content' });
+    if (role === 'assistant' && content) {
+      contentEl.innerHTML = renderMarkdown(content);
+    } else {
+      contentEl.textContent = content;
+    }
     return h('div', { className: `chat-msg chat-msg--${role}` },
       h('span', { className: 'chat-msg-role' }, label),
-      h('div', { className: 'chat-msg-content' }, escapeHtml(content)),
+      contentEl,
     );
   }
 
   private _scrollToBottom(): void {
     this._messagesEl.scrollTop = this._messagesEl.scrollHeight;
+  }
+
+  /** Show animated "thinking" indicator bubble. */
+  private _showThinking(): void {
+    if (this._thinkingEl) return;
+    this._thinkingEl = h('div', { className: 'chat-msg chat-msg--assistant chat-msg--thinking' },
+      h('span', { className: 'chat-msg-role' }, 'AI'),
+      h('div', { className: 'chat-msg-content' },
+        h('span', { className: 'chat-thinking-dots' },
+          h('span', {}, ''), h('span', {}, ''), h('span', {}, ''),
+        ),
+        h('span', { className: 'chat-thinking-label' }, 'Đang suy nghĩ...'),
+      ),
+    );
+    this._messagesEl.appendChild(this._thinkingEl);
+    this._scrollToBottom();
+  }
+
+  /** Remove the thinking indicator. */
+  private _hideThinking(): void {
+    if (this._thinkingEl) {
+      this._thinkingEl.remove();
+      this._thinkingEl = null;
+    }
   }
 }

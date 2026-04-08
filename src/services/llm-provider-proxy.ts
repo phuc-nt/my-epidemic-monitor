@@ -51,6 +51,18 @@ export function createProxyProvider(): LLMProvider {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages }),
       });
+      if (res.status === 429) {
+        // Daily or rate limit hit — parse SSE error payload
+        const raw = await res.text();
+        const match = raw.match(/data:\s*({[^\n]+})/);
+        let msg = 'Rate limit exceeded. Please try again later.';
+        if (match) {
+          try { msg = JSON.parse(match[1]).error ?? msg; } catch { /* ignore */ }
+        }
+        onChunk(msg);
+        onDone();
+        return;
+      }
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(`Chat proxy ${res.status}: ${errText.slice(0, 200)}`);
