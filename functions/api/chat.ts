@@ -16,8 +16,9 @@ import { corsHeaders } from '../_shared/cors';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'minimax/minimax-m2.7';
 const MAX_MESSAGES = 20;
-const MAX_CONTENT_LENGTH = 4000; // single message
-const MAX_TOTAL_LENGTH = 20000; // sum across all messages
+const MAX_USER_MESSAGE_LENGTH = 2000;  // user/assistant messages
+const MAX_SYSTEM_LENGTH = 30000;       // system prompt (contains 7-day data)
+const MAX_TOTAL_LENGTH = 50000;        // sum across all messages
 const DAILY_LIMIT_PER_IP = 10;  // max chat requests per IP per day
 
 interface Env {
@@ -103,7 +104,9 @@ function validateMessages(raw: unknown): ChatMessage[] | string {
     const content = (m as { content?: string }).content;
     if (role !== 'system' && role !== 'user' && role !== 'assistant') return 'invalid role';
     if (typeof content !== 'string') return 'content must be string';
-    if (content.length > MAX_CONTENT_LENGTH) return `message too long (max ${MAX_CONTENT_LENGTH})`;
+    // System messages can be larger (contain 7-day data dump); user/assistant capped tighter
+    const maxLen = role === 'system' ? MAX_SYSTEM_LENGTH : MAX_USER_MESSAGE_LENGTH;
+    if (content.length > maxLen) return `${role} message too long (max ${maxLen})`;
     totalLen += content.length;
     result.push({ role, content });
   }

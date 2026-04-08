@@ -508,8 +508,10 @@ export async function initApp(): Promise<void> {
             messages,
             (chunk) => chatPanel.appendChunk(chunk),
             () => chatPanel.endStreaming(),
-          ).catch(() => {
-            chatPanel.appendChunk('\n[Error: LLM request failed]');
+          ).catch((err) => {
+            console.error('[chat] LLM request failed:', err);
+            const errMsg = err instanceof Error ? err.message : String(err);
+            chatPanel.appendChunk(`\n⚠️ Lỗi: ${errMsg}`);
             chatPanel.endStreaming();
           });
         };
