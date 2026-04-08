@@ -6,6 +6,7 @@ dist/
 *.log
 .DS_Store
 test-results/
+playwright-report/
 .vercel
 .wrangler/
 .env*.local

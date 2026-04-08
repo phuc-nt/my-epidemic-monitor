@@ -1,17 +1,14 @@
 /**
- * LLM-powered data pipeline — automatic cleanup and transform on each data fetch.
- * Runs in background after outbreak/news data arrives.
- * Falls back to regex/rule-based when LLM unavailable.
+ * Client-side data normalization — runs after outbreak/news data arrives.
+ * Pure rule-based: disease alias normalization, HTML/entity cleanup, and
+ * Jaccard-similarity deduplication. Server-side extraction (MiniMax M2.7
+ * on the Mac Mini pipeline) handles all real entity extraction; the client
+ * never re-fetches article bodies.
  */
 
 import type { DiseaseOutbreakItem, NewsItem } from '@/types';
 import type { ChatMessage } from '@/types/llm-types';
 import { findDuplicatesByTitle, titleSimilarity } from '@/services/news-dedup-rules';
-import { extractEntitiesRule } from '@/services/llm-entity-extraction-service';
-import { apiFetch } from '@/services/api-client';
-
-// Cache processed results to avoid redundant article fetches per session
-const _processedCache = new Map<string, unknown>();
 
 /**
  * Kept as a no-op for backwards compatibility with app-init.
@@ -26,7 +23,7 @@ export function setLLMComplete(_fn: ((msgs: ChatMessage[]) => Promise<string>) |
 // Public API — called after each data fetch
 // ---------------------------------------------------------------------------
 
-/** Clean, deduplicate, and enrich outbreak data. Modifies array in-place. */
+/** Normalize disease names + clean summaries + dedup. Modifies array in-place. */
 export async function processOutbreaks(outbreaks: DiseaseOutbreakItem[]): Promise<void> {
   for (const o of outbreaks) {
     o.disease = normalizeDiseaseNameRule(o.disease);
@@ -35,14 +32,6 @@ export async function processOutbreaks(outbreaks: DiseaseOutbreakItem[]): Promis
 
   // Dedup outbreaks by title similarity (same event from different sources)
   deduplicateOutbreaks(outbreaks);
-
-  // Rule-based enrichment only.
-  // LLM enrichment was disabled because it called /api/chat for every page
-  // load (~20 requests), exhausting the user's daily chat quota (10/day).
-  const needsEnrich = outbreaks.filter(o => !o.cases && !_processedCache.has(o.id));
-  if (needsEnrich.length > 0) {
-    await enrichOutbreaksBatch(needsEnrich);
-  }
 }
 
 /**
@@ -188,69 +177,7 @@ function cleanText(text: string): string {
     .trim();
 }
 
-// ---------------------------------------------------------------------------
-// LLM-powered enrichment (optional, runs when LLM available)
-// ---------------------------------------------------------------------------
-
-/**
- * Enrich outbreaks: fetch full article body → extract entities (ward-level location, cases, deaths).
- * Uses LLM when available, falls back to rule-based extraction.
- * Processes top 20 items with real URLs to avoid excessive API calls.
- */
-async function enrichOutbreaksBatch(items: DiseaseOutbreakItem[]): Promise<void> {
-  // Only process items with real article URLs (not generic/empty)
-  const enrichable = items
-    .filter(o => o.url && o.url.length > 30 && !_processedCache.has(o.id))
-    .slice(0, 20); // Limit to top 20 to manage API calls
-
-  for (const item of enrichable) {
-    try {
-      // Fetch full article body via proxy
-      const article = await apiFetch<{ body: string }>(`/api/health/v1/article?url=${encodeURIComponent(item.url)}`);
-
-      if (!article.body || article.body.length < 50) {
-        _processedCache.set(item.id, true);
-        continue;
-      }
-
-      // Extract entities from full article text — rule-based only
-      // (LLM enrichment disabled: was consuming chat daily limit on every page load)
-      const fullText = `${item.title} ${item.summary} ${article.body}`;
-      const entities = extractEntitiesRule(fullText);
-
-      // Apply extracted data (only override if more specific)
-      if (entities.cases != null && !item.cases) item.cases = entities.cases;
-      if (entities.deaths != null && !item.deaths) item.deaths = entities.deaths;
-
-      // Upgrade location precision: ward > district > province
-      if (entities.location.ward && !item.district) {
-        item.district = `${entities.location.ward}, ${entities.location.district}`;
-      }
-      if (entities.location.district && !item.district) {
-        item.district = entities.location.district;
-      }
-      if (entities.location.province && !item.province) {
-        item.province = entities.location.province;
-      }
-      // Use more precise coordinates if available
-      if (entities.location.lat && entities.location.lng) {
-        item.lat = entities.location.lat;
-        item.lng = entities.location.lng;
-      }
-
-      _processedCache.set(item.id, true);
-    } catch {
-      // Article fetch or extraction failed — skip, don't block pipeline
-      _processedCache.set(item.id, true);
-    }
-  }
-}
-
-/**
- * Rule-based news deduplication only.
- * LLM tier was removed because every page load was consuming the user's
- * daily chat quota (10 msg/day) — completely unrelated to actual chat usage.
- */
+/** Rule-based news deduplication using Jaccard title similarity. */
 async function markDuplicateNews(news: NewsItem[]): Promise<void> {
   const titles = news.map(n => n.title);
   const rulePairs = findDuplicatesByTitle(titles, 0.5);

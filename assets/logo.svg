@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" role="img" aria-label="My Agent Kit Radar 3D">
+  <title>My Agent Kit — Radar 3D</title>
+  <!--
+    3D radar cylinder — isometric perspective.
+    Radar face: cx=100, cy=78, rx=80, ry=32.
+    Cylinder depth: 32px (bottom ellipse cy=110).
+    Orange palette from logo-stack-orange-layer2:
+      face ring  → #e04422
+      left side  → #9a2c14
+      right side → #b03318
+    Sweep at t=215° (upper-left on isometric face).
+  -->
+
+  <!-- ── CYLINDER BODY (front-facing side) ── -->
+  <!--
+    Front skirt shape:
+    - Top edge   : front arc of top ellipse    (L→R, curves DOWN through y=110)
+    - Right edge : vertical line (180,78)→(180,110)
+    - Bottom edge: front arc of bottom ellipse (R→L, curves DOWN through y=142)
+    - Left edge  : vertical line (20,110)→(20,78) via Z
+    sweep=1 traces the front (downward-curving) half of each ellipse.
+  -->
+  <path d="M 20,78 A 80,32 0 0,1 180,78 L 180,110 A 80,32 0 0,1 20,110 Z" fill="#1a1a1a" />
+
+  <!-- Left-side darker shading (near left vertical edge) -->
+  <path d="M 20,78 A 80,32 0 0,1 60,70 L 60,104 A 80,32 0 0,1 20,110 Z" fill="#0d0d0d" opacity="0.5" />
+
+  <!-- Orange band on cylinder — left #9a2c14, right #b03318 -->
+  <!-- Full band y=86→97 at edges, curves to y=118→129 at face center -->
+  <path d="M 20,86 A 80,32 0 0,1 180,86 L 180,97 A 80,32 0 0,1 20,97 Z" fill="#9a2c14" />
+  <!-- Right-side highlight on band -->
+  <path d="M 140,82 A 80,32 0 0,1 180,86 L 180,97 A 80,32 0 0,1 140,93 Z" fill="#b03318" />
+  <!-- Top highlight strip on band -->
+  <path d="M 20,86 A 80,32 0 0,1 180,86 L 180,90 A 80,32 0 0,1 20,90 Z" fill="#b03318" />
+
+  <!-- Top rim highlight (back arc of top ellipse) -->
+  <path d="M 20,78 A 80,32 0 0,0 180,78" fill="none" stroke="#333333" stroke-width="1.5" />
+  <!-- Bottom edge -->
+  <path d="M 20,110 A 80,32 0 0,1 180,110" fill="none" stroke="#0d0d0d" stroke-width="1" />
+
+  <!-- ── RADAR FACE (top ellipse) ── -->
+  <!-- Screen background -->
+  <ellipse cx="100" cy="78" rx="80" ry="32" fill="#101010" />
+
+  <!-- Grid crosshairs -->
+  <line x1="20" y1="78" x2="180" y2="78" stroke="#1c1c1c" stroke-width="1" />
+  <line x1="100" y1="46" x2="100" y2="110" stroke="#1c1c1c" stroke-width="1" />
+
+  <!-- Outer ring -->
+  <ellipse cx="100" cy="78" rx="80" ry="32" fill="none" stroke="#2a2a2a" stroke-width="1.5" />
+
+  <!-- Middle ring — orange (#e04422 = Layer 3 top face color) -->
+  <ellipse cx="100" cy="78" rx="53" ry="21" fill="none" stroke="#e04422" stroke-width="2" />
+  <!-- Subtle glow around orange ring -->
+  <ellipse cx="100" cy="78" rx="53" ry="21" fill="none" stroke="#e04422" stroke-width="5" opacity="0.08" />
+
+  <!-- Inner ring -->
+  <ellipse cx="100" cy="78" rx="27" ry="11" fill="none" stroke="#363636" stroke-width="1.5" />
+
+  <!-- Sweep wedge (filled semi-transparent slice, t=203°→227°) -->
+  <!--
+    t=203°: outer=(26, 66),  t=227°: outer=(45, 55)
+    Arc from (26,66) to (45,55) sweep=1 (clockwise in screen = increasing t in standard math)
+  -->
+  <path d="M 100,78 L 26,66 A 80,32 0 0,1 45,55 Z" fill="#e04422" opacity="0.18" />
+
+  <!-- Ghost trail lines (flanking the main sweep) -->
+  <line x1="100" y1="78" x2="26" y2="66" stroke="#e04422" stroke-width="1.2" stroke-linecap="round" opacity="0.28" />
+  <line x1="100" y1="78" x2="45" y2="55" stroke="#e04422" stroke-width="1.2" stroke-linecap="round" opacity="0.22" />
+
+  <!-- Main sweep line at t=215° → outer face point (35, 60) -->
+  <line x1="100" y1="78" x2="35" y2="60" stroke="#e04422" stroke-width="2.5" stroke-linecap="round" opacity="0.9" />
+
+  <!-- Target blip (t=320°, r≈0.68) → (142, 64) upper-right quadrant -->
+  <circle cx="142" cy="64" r="5" fill="#e04422" opacity="0.15" />
+  <circle cx="142" cy="64" r="2.5" fill="#e04422" />
+
+  <!-- Center dot -->
+  <circle cx="100" cy="78" r="6" fill="#e04422" opacity="0.12" />
+  <circle cx="100" cy="78" r="3" fill="#e04422" />
+
+  <!-- Outer ring crisp border (on top of all face elements) -->
+  <ellipse cx="100" cy="78" rx="80" ry="32" fill="none" stroke="#2e2e2e" stroke-width="1" />
+
+</svg>
