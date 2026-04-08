@@ -25,7 +25,6 @@ import { fetchEpidemicStats } from '@/services/epidemic-stats-service';
 import { fetchHealthNews } from '@/services/news-feed-service';
 import { invalidateCache } from '@/services/fetch-cache';
 import { fetchBulkData, invalidateBulkCache } from '@/services/bulk-data-service';
-import { NewsFeedPanel } from '@/components/news-feed-panel';
 import { ChatPanel } from '@/components/chat-panel';
 import { ClimateAlertsPanel } from '@/components/climate-alerts-panel';
 import { diseaseLabel } from '@/components/case-report-panel-data';
@@ -53,7 +52,6 @@ export async function initApp(): Promise<void> {
     const outbreaksPanel = new DiseaseOutbreaksPanel();
     const statsPanel     = new EpidemicStatisticsPanel();
     const trendPanel     = new TrendChartPanel();
-    const newsPanel      = new NewsFeedPanel();
     const chatPanel      = new ChatPanel();
     const climatePanel   = new ClimateAlertsPanel();
     const banner         = new BreakingNewsBanner();
@@ -61,7 +59,7 @@ export async function initApp(): Promise<void> {
     // 4. Mount panels into 2 tabs (Tools tab removed; Case Report removed)
     const tabGroups: Record<string, { label: string; panels: HTMLElement[] }> = {
       dashboard: { label: 'Dashboard', panels: [outbreaksPanel.el, climatePanel.el] },
-      analysis:  { label: 'Analysis',  panels: [statsPanel.el, newsPanel.el, trendPanel.el] },
+      analysis:  { label: 'Analysis',  panels: [statsPanel.el, trendPanel.el] },
     };
 
     // Build tab bar
@@ -216,7 +214,6 @@ export async function initApp(): Promise<void> {
     ctx.panels.set(outbreaksPanel.id, outbreaksPanel);
     ctx.panels.set(climatePanel.id,   climatePanel);
     ctx.panels.set(statsPanel.id,     statsPanel);
-    ctx.panels.set(newsPanel.id,      newsPanel);
     ctx.panels.set(chatPanel.id,      chatPanel);
     ctx.panels.set(trendPanel.id,     trendPanel);
 
@@ -289,7 +286,6 @@ export async function initApp(): Promise<void> {
       ctx.news = news;
 
       outbreaksPanel.updateData(outbreaks);
-      newsPanel.updateData(news);
 
       // Update timeline count badges + summary strip with latest data
       updateTimelineCounts(outbreaks);
@@ -310,7 +306,6 @@ export async function initApp(): Promise<void> {
     // Initial fetch
     outbreaksPanel.showLoading();
     statsPanel.showLoading();
-    newsPanel.showLoading();
 
     let outbreaks: DiseaseOutbreakItem[];
     let stats: EpidemicStats;
