@@ -10,7 +10,7 @@ url: "https://phuc-nt.github.io"
 
 logo: "/assets/logo.svg"
 
-color_scheme: brand
+color_scheme: light
 
 search_enabled: true
 search:
