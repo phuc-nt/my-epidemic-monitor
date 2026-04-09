@@ -12,7 +12,7 @@ const MAX_ROWS = 10;
 
 export class TopDiseasesPanel extends Panel {
   constructor() {
-    super({ id: 'top-diseases', title: 'Bệnh đang nóng', defaultRowSpan: 2 });
+    super({ id: 'top-diseases', title: 'Bệnh được nhắc nhiều', defaultRowSpan: 2 });
   }
 
   /** Rebuild table from the current outbreak list. Groups by human label to
@@ -46,7 +46,7 @@ export class TopDiseasesPanel extends Panel {
       h('thead', {},
         h('tr', {},
           h('th', {}, 'Bệnh'),
-          h('th', { className: 'top-diseases-count' }, 'Số ổ dịch'),
+          h('th', { className: 'top-diseases-count' }, 'Số tin'),
         ),
       ),
       h('tbody', {}, ...rows),
