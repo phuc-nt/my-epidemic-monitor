@@ -49,8 +49,7 @@ export async function initApp(): Promise<void> {
     const { appHeader, mapContainer, panelsGrid } = createLayout();
 
     // Global header — consolidated brand + disclaimer + author + legal links.
-    // Moves everything out of the map overlay and the dashboard strip so both
-    // viewports stay focused on data.
+    // Light theme, spans full width above map + dashboard.
     const headerBrand = h('div', { className: 'app-header-brand' },
       h('img', { className: 'app-header-logo', src: '/logo.svg', alt: 'Epidemic Monitor' }),
       h('div', { className: 'app-header-title-group' },
@@ -64,14 +63,29 @@ export async function initApp(): Promise<void> {
 
     const headerDisclaimer = h('div', { className: 'app-header-disclaimer' },
       h('span', { className: 'app-header-disclaimer-icon' }, '⚠️'),
-      h('span', { className: 'app-header-disclaimer-text' },
-        'Dữ liệu do AI tổng hợp từ báo chí công khai, không phải công bố chính thức. Đối chiếu ',
-        h('a', { href: 'https://moh.gov.vn', target: '_blank', rel: 'noopener noreferrer' }, 'Bộ Y tế'),
-        ' · ',
-        h('a', { href: 'https://vncdc.gov.vn', target: '_blank', rel: 'noopener noreferrer' }, 'Cục YTDP'),
-        ' · ',
-        h('a', { href: 'https://hcdc.vn', target: '_blank', rel: 'noopener noreferrer' }, 'HCDC'),
-        ' trước khi ra quyết định.',
+      h('div', { className: 'app-header-disclaimer-body' },
+        h('div', { className: 'app-header-disclaimer-main' },
+          h('strong', {}, 'Đây không phải nguồn chính thống.'),
+          ' Dữ liệu do AI tự động tổng hợp từ các báo Việt Nam công khai, có thể chậm, chưa đầy đủ hoặc sai sót. Luôn đối chiếu với ',
+          h('a', { href: 'https://moh.gov.vn', target: '_blank', rel: 'noopener noreferrer' }, 'Bộ Y tế'),
+          ' · ',
+          h('a', { href: 'https://vncdc.gov.vn', target: '_blank', rel: 'noopener noreferrer' }, 'Cục YTDP'),
+          ' · ',
+          h('a', { href: 'https://hcdc.vn', target: '_blank', rel: 'noopener noreferrer' }, 'HCDC'),
+          ' · CDC các tỉnh trước khi ra quyết định quan trọng về y tế hay du lịch.',
+        ),
+        h('div', { className: 'app-header-disclaimer-actions' },
+          h('a', {
+            className: 'app-header-disclaimer-terms',
+            href: '/terms.html',
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          }, '📄 Điều khoản sử dụng'),
+          h('a', {
+            className: 'app-header-disclaimer-report',
+            href: 'mailto:phucnt0@gmail.com?subject=[Epidemic%20Monitor]%20Takedown%20request',
+          }, '✉ Báo cáo nội dung sai'),
+        ),
       ),
     );
 
@@ -83,8 +97,6 @@ export async function initApp(): Promise<void> {
           h('a', { href: 'https://github.com/phuc-nt', target: '_blank', rel: 'noopener noreferrer', title: 'GitHub' }, 'GH'),
           h('a', { href: 'https://www.linkedin.com/in/nguyen-trong-phuc', target: '_blank', rel: 'noopener noreferrer', title: 'LinkedIn' }, 'in'),
           h('a', { href: 'https://phucnt.substack.com', target: '_blank', rel: 'noopener noreferrer', title: 'Substack' }, 'SS'),
-          h('a', { href: '/terms.html', target: '_blank', rel: 'noopener noreferrer', title: 'Điều khoản' }, 'ĐK'),
-          h('a', { href: 'mailto:phucnt0@gmail.com?subject=[Epidemic%20Monitor]%20Takedown%20request', title: 'Báo cáo nội dung sai' }, '✉'),
         ),
       ),
     );
