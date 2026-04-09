@@ -50,6 +50,9 @@ export class MapShell {
       }
     });
 
+    // Localize map labels to Vietnamese perspective whenever the style (re)loads
+    this.map.on('style.load', () => this._applyVietnameseLabelOverrides());
+
     // Minimal attribution in bottom-right
     this.map.addControl(
       new maplibregl.AttributionControl({ compact: true }),
@@ -85,5 +88,87 @@ export class MapShell {
   /** Clean up map resources. */
   destroy(): void {
     this.map.remove();
+  }
+
+  /**
+   * Replace politically sensitive sea labels ("South China Sea") with the
+   * Vietnamese name "Biển Đông", and add Hoàng Sa / Trường Sa archipelago
+   * labels that the upstream basemap omits.
+   */
+  private _applyVietnameseLabelOverrides(): void {
+    const style = this.map.getStyle();
+    if (!style?.layers) return;
+
+    // 1) Rewrite text on any water/marine label layer that currently shows
+    //    "South China Sea". Covers common OpenMapTiles / CartoDB patterns.
+    const waterLabelPatterns = /water|marine|ocean|place[-_]sea/i;
+    for (const layer of style.layers) {
+      if (layer.type !== 'symbol') continue;
+      if (!waterLabelPatterns.test(layer.id)) continue;
+      try {
+        this.map.setLayoutProperty(layer.id, 'text-field', [
+          'let',
+          'raw',
+          ['coalesce', ['get', 'name:vi'], ['get', 'name:en'], ['get', 'name']],
+          [
+            'case',
+            ['==', ['var', 'raw'], 'South China Sea'], 'Biển Đông',
+            ['==', ['var', 'raw'], 'Nam Hải'], 'Biển Đông',
+            ['var', 'raw'],
+          ],
+        ]);
+      } catch {
+        // Layer may not support text-field expression — ignore and continue
+      }
+    }
+
+    // 2) Inject Hoàng Sa & Trường Sa labels (absent from OpenFreeMap bright).
+    const SOURCE_ID = 'vn-sea-labels';
+    const LAYER_ID  = 'vn-sea-labels-text';
+    if (!this.map.getSource(SOURCE_ID)) {
+      this.map.addSource(SOURCE_ID, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              properties: { name: 'Biển Đông', size: 18 },
+              geometry: { type: 'Point', coordinates: [112.5, 15.0] },
+            },
+            {
+              type: 'Feature',
+              properties: { name: 'Quần đảo Hoàng Sa\n(Việt Nam)', size: 12 },
+              geometry: { type: 'Point', coordinates: [112.0, 16.5] },
+            },
+            {
+              type: 'Feature',
+              properties: { name: 'Quần đảo Trường Sa\n(Việt Nam)', size: 12 },
+              geometry: { type: 'Point', coordinates: [114.0, 10.0] },
+            },
+          ],
+        },
+      });
+    }
+    if (!this.map.getLayer(LAYER_ID)) {
+      this.map.addLayer({
+        id: LAYER_ID,
+        type: 'symbol',
+        source: SOURCE_ID,
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': ['get', 'size'],
+          'text-font': ['Noto Sans Regular'],
+          'text-letter-spacing': 0.05,
+          'text-max-width': 10,
+          'text-anchor': 'center',
+        },
+        paint: {
+          'text-color': '#1e3a5f',
+          'text-halo-color': 'rgba(255,255,255,0.9)',
+          'text-halo-width': 1.5,
+        },
+      });
+    }
   }
 }

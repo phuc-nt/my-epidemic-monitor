@@ -147,19 +147,76 @@ export interface OutbreakItem {
   cases?: number;
 }
 
+/**
+ * Cap the pipeline-reported alert level by the actual case count.
+ * Prevents the "1 ca × 100 báo viết lại → cả tỉnh đỏ chét" failure mode.
+ *
+ * Rules:
+ *   cases >= 100 → alert allowed
+ *   cases 20-99  → cap at warning
+ *   cases 1-19   → cap at watch
+ *   cases 0/null → cap at watch (only "tin nhắc đến", no confirmed count)
+ */
+function capAlertByCases(
+  peakAlert: 'alert' | 'warning' | 'watch',
+  cases: number | null | undefined,
+): 'alert' | 'warning' | 'watch' {
+  const n = cases ?? 0;
+  const LEVEL = { watch: 1, warning: 2, alert: 3 } as const;
+  const REVERSE = ['', 'watch', 'warning', 'alert'] as const;
+  let cap: 1 | 2 | 3 = 1;
+  if (n >= 100) cap = 3;
+  else if (n >= 20) cap = 2;
+  else cap = 1;
+  const original = LEVEL[peakAlert] ?? 1;
+  const final = Math.min(original, cap) as 1 | 2 | 3;
+  return REVERSE[final] as 'alert' | 'warning' | 'watch';
+}
+
+/**
+ * Extract primary publisher name from a pipe-separated URL list.
+ * E.g. "https://vnexpress.net/...|https://tuoitre.vn/..." → "vnexpress.net".
+ */
+function extractPrimaryPublisher(sourceUrls: string): string {
+  const firstUrl = sourceUrls.split('|')[0] ?? '';
+  try {
+    const u = new URL(firstUrl);
+    return u.hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
 export function mapHotspots(hotspots: HotspotRow[]): OutbreakItem[] {
   return hotspots.map(h => {
     const province = String(h.province ?? '');
     const coords = resolveProvinceCoords(province);
     const districtIdSuf = h.district ? `:${h.district}` : '';
+    const cases = h.peak_cases ? Number(h.peak_cases) : undefined;
+    const alertLevel = capAlertByCases(
+      (h.peak_alert as 'alert' | 'warning' | 'watch') ?? 'watch',
+      cases,
+    );
+    const articleCount = Number(h.article_count ?? 1);
+    const primarySource = extractPrimaryPublisher(String(h.source_urls ?? ''));
+    const locationPart = h.district ? `${h.district}, ${province}` : province;
+    // Legal-safe wording: frame the item as "báo chí đưa tin về…" instead of
+    // asserting an outbreak exists. All claims are attributed to the source.
+    const title = articleCount >= 2
+      ? `${articleCount} báo đưa tin: ${diseaseLabel(String(h.disease ?? ''))} tại ${locationPart}`
+      : `${primarySource || 'Báo chí'} đưa tin: ${diseaseLabel(String(h.disease ?? ''))} tại ${locationPart}`;
+    const casesPart = cases != null
+      ? `Số ca được báo chí đề cập: ~${cases.toLocaleString('vi-VN')} (chưa xác minh độc lập)`
+      : 'Số ca cụ thể chưa được nêu rõ trong bài báo.';
+    const summary = `Theo ${articleCount} bài báo${primarySource ? ` (${primarySource})` : ''}. ${casesPart}`;
     return {
       id: `pipeline:${h.disease}:${h.province}${districtIdSuf}:${h.day}`,
       disease: String(h.disease ?? ''),
       country: 'Vietnam',
       countryCode: 'VN',
-      alertLevel: (h.peak_alert as 'alert' | 'warning' | 'watch') ?? 'watch',
-      title: `${diseaseLabel(String(h.disease ?? ''))} tại ${h.district ? h.district + ', ' : ''}${h.province}`,
-      summary: `${h.article_count} nguồn (${h.source_types}). Số ca: ${h.peak_cases ?? 'N/A'}`,
+      alertLevel,
+      title,
+      summary,
       url: String((h.source_urls as string)?.split('|')[0] ?? ''),
       publishedAt: new Date(String(h.day)).getTime(),
       province,
@@ -167,7 +224,7 @@ export function mapHotspots(hotspots: HotspotRow[]): OutbreakItem[] {
       lat: coords[0],
       lng: coords[1],
       source: `pipeline:${String(h.source_types ?? '')}`,
-      cases: h.peak_cases ? Number(h.peak_cases) : undefined,
+      cases,
     };
   });
 }
@@ -183,13 +240,62 @@ export function getLastNDays(n = 7): string[] {
 
 /**
  * Query D1 for hotspots across the last 7 days in parallel.
- * Returns all items sorted newest first.
+ * Only web-sourced items (WHITELISTED_SOURCE_TYPES) are surfaced to the UI.
+ * YouTube/Facebook items are still ingested into D1 for reference + future
+ * improvements, but hidden from the UI until their signal is trusted enough.
  */
+const WHITELISTED_SOURCE_TYPES = ['web'];
+
 export async function fetchOutbreaksFromD1(db: D1Database): Promise<OutbreakItem[]> {
   const days = getLastNDays(7);
+  // Aggregate outbreak_items directly so we can filter by source_type before
+  // the hotspots VIEW groups across all sources. Keeps pure-web hotspots only.
   const results = await Promise.allSettled(
     days.map(day =>
-      db.prepare('SELECT * FROM hotspots WHERE day = ?').bind(day).all<HotspotRow>()
+      db.prepare(`
+        SELECT
+          disease,
+          province,
+          district,
+          ? AS day,
+          CASE MAX(CASE alert_level WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END)
+            WHEN 3 THEN 'alert' WHEN 2 THEN 'warning' ELSE 'watch'
+          END AS peak_alert,
+          MAX(cases) AS peak_cases,
+          COUNT(*) AS article_count,
+          GROUP_CONCAT(DISTINCT source_type) AS source_types,
+          GROUP_CONCAT(url, '|') AS source_urls
+        FROM outbreak_items
+        WHERE source_type IN (${WHITELISTED_SOURCE_TYPES.map(() => '?').join(',')})
+          AND strftime('%Y-%m-%d', published_at/1000, 'unixepoch') = ?
+          AND disease NOT IN ('african-swine-fever', 'avian-influenza')
+          -- VN-only guard (layer 1): LLM-extracted country must be Vietnam or null.
+          AND (country IS NULL OR LOWER(country) IN ('vietnam', 'viet nam', 'việt nam', 'vn'))
+          -- VN-only guard (layer 2): reject titles that obviously name a foreign
+          -- country. Catches the pattern where a VN newspaper reports on a
+          -- foreign outbreak and M2.7 fails to tag country correctly
+          -- (e.g., Thanh Niên's Bangladesh measles story).
+          AND LOWER(title) NOT GLOB '*bangladesh*'
+          AND LOWER(title) NOT GLOB '*pakistan*'
+          AND LOWER(title) NOT GLOB '*argentina*'
+          AND LOWER(title) NOT GLOB '*florida*'
+          AND LOWER(title) NOT GLOB '*texas*'
+          AND LOWER(title) NOT GLOB '*nigeria*'
+          AND LOWER(title) NOT GLOB '*philippines*'
+          AND LOWER(title) NOT GLOB '*indonesia*'
+          AND LOWER(title) NOT GLOB '*thái lan*'
+          AND LOWER(title) NOT GLOB '*singapore*'
+          AND LOWER(title) NOT GLOB '*malaysia*'
+          AND LOWER(title) NOT GLOB '*cambodia*'
+          AND LOWER(title) NOT GLOB '*trung quốc*'
+          AND LOWER(title) NOT GLOB '*china*'
+          AND LOWER(title) NOT GLOB '*châu phi*'
+          AND LOWER(title) NOT GLOB '*africa*'
+          AND LOWER(title) NOT GLOB '*mỹ *'
+          AND LOWER(title) NOT GLOB '* usa *'
+        GROUP BY disease, province, IFNULL(district, '')
+        ORDER BY MAX(CASE alert_level WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END) DESC
+      `).bind(day, ...WHITELISTED_SOURCE_TYPES, day).all<HotspotRow>()
     )
   );
 

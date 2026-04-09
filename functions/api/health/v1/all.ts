@@ -56,7 +56,8 @@ function computeStats(outbreaks: OutbreakItem[]) {
   };
 }
 
-/** Fetch news from D1 outbreak_items table. */
+/** Fetch news from D1 outbreak_items table.
+ *  Only whitelisted web sources + VN-only (title-level guard). */
 async function fetchNews(db: D1Database): Promise<NewsItem[]> {
   const result = await db.prepare(`
     SELECT id, title,
@@ -64,6 +65,24 @@ async function fetchNews(db: D1Database): Promise<NewsItem[]> {
       url, COALESCE(published_at, ingested_at) AS published_at, summary
     FROM outbreak_items
     WHERE url IS NOT NULL AND title IS NOT NULL
+      AND source_type = 'web'
+      AND (country IS NULL OR LOWER(country) IN ('vietnam', 'viet nam', 'việt nam', 'vn'))
+      AND LOWER(title) NOT GLOB '*bangladesh*'
+      AND LOWER(title) NOT GLOB '*pakistan*'
+      AND LOWER(title) NOT GLOB '*argentina*'
+      AND LOWER(title) NOT GLOB '*florida*'
+      AND LOWER(title) NOT GLOB '*texas*'
+      AND LOWER(title) NOT GLOB '*nigeria*'
+      AND LOWER(title) NOT GLOB '*philippines*'
+      AND LOWER(title) NOT GLOB '*indonesia*'
+      AND LOWER(title) NOT GLOB '*thái lan*'
+      AND LOWER(title) NOT GLOB '*singapore*'
+      AND LOWER(title) NOT GLOB '*malaysia*'
+      AND LOWER(title) NOT GLOB '*cambodia*'
+      AND LOWER(title) NOT GLOB '*trung quốc*'
+      AND LOWER(title) NOT GLOB '*china*'
+      AND LOWER(title) NOT GLOB '*châu phi*'
+      AND LOWER(title) NOT GLOB '*africa*'
     ORDER BY COALESCE(published_at, ingested_at) DESC
     LIMIT ?
   `).bind(NEWS_LIMIT).all<{ id: string; title: string; source: string; url: string; published_at: number; summary: string | null }>();

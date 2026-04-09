@@ -4,8 +4,10 @@ import { h } from '@/utils/dom-utils';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
-// Configure marked for compact, streaming-friendly rendering
-marked.setOptions({ gfm: true, breaks: true });
+// Configure marked for compact, streaming-friendly rendering.
+// breaks:false — let the LLM use proper markdown paragraphs instead of single
+// newlines becoming <br>, which makes responses feel airy.
+marked.setOptions({ gfm: true, breaks: false });
 
 /** Render markdown to sanitized HTML. */
 function renderMarkdown(src: string): string {
@@ -41,10 +43,10 @@ export class ChatPanel extends Panel {
   public onSend: ((text: string) => void) | null = null;
 
   constructor() {
-    super({ id: 'ai-assistant', title: 'AI Assistant', showCount: false, defaultRowSpan: 4 });
+    super({ id: 'ai-assistant', title: 'Trợ lý AI', showCount: false, defaultRowSpan: 4 });
 
     // Status bar — shows provider connection state
-    this._statusEl = h('div', { className: 'chat-status' }, 'Connecting...');
+    this._statusEl = h('div', { className: 'chat-status' }, 'Đang kết nối...');
 
     // Scrollable messages area
     this._messagesEl = h('div', { className: 'chat-messages' });
@@ -52,7 +54,7 @@ export class ChatPanel extends Panel {
     // Textarea — created via createElement to get typed HTMLTextAreaElement
     this._inputEl = document.createElement('textarea');
     this._inputEl.className = 'chat-input';
-    this._inputEl.placeholder = 'Ask about epidemic data...';
+    this._inputEl.placeholder = 'Hỏi về dữ liệu dịch bệnh...';
     this._inputEl.rows = 1;
 
     // Send button

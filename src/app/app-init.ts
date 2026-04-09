@@ -14,14 +14,13 @@ import { MapShell } from '@/components/map-shell';
 import { ctx, on, emit } from '@/app/app-context';
 
 import { DiseaseOutbreaksPanel } from '@/components/disease-outbreaks-panel';
-import { EpidemicStatisticsPanel } from '@/components/epidemic-statistics-panel';
-import { TrendChartPanel } from '@/components/trend-chart-panel';
+import { TopDiseasesPanel } from '@/components/top-diseases-panel';
 import { MapPopup } from '@/components/map-popup';
+import { ensureDisclaimerAcknowledged } from '@/components/first-visit-disclaimer';
 import { MapLayerControls } from '@/components/map-layer-controls';
 import { updateMapLayers } from '@/components/map-layers/index';
 
 import { fetchDiseaseOutbreaks } from '@/services/disease-outbreak-service';
-import { fetchEpidemicStats } from '@/services/epidemic-stats-service';
 import { fetchHealthNews } from '@/services/news-feed-service';
 import { invalidateCache } from '@/services/fetch-cache';
 import { fetchBulkData, invalidateBulkCache } from '@/services/bulk-data-service';
@@ -34,13 +33,18 @@ import { processOutbreaks, processNews, setLLMComplete } from '@/services/llm-da
 import { complete } from '@/services/llm-router';
 import { fetchClimateForecasts } from '@/services/climate-service';
 import { initSnapshotDB, saveSnapshot, getRecentSnapshots, pruneOldSnapshots } from '@/services/snapshot-store';
-import { computeStatsDelta, computeAllTrends, detectEscalations, detectEarlyWarnings } from '@/services/trend-calculator';
+import { detectEscalations, detectEarlyWarnings } from '@/services/trend-calculator';
 import { setEarlyWarnings, setDistrictGeoJson, setHighlightedProvince, setSelectedDate } from '@/components/map-layers/index';
 import { BreakingNewsBanner } from '@/components/breaking-news-banner';
 import type { DiseaseOutbreakItem, EpidemicStats, NewsItem } from '@/types';
 
 export async function initApp(): Promise<void> {
   try {
+    // 0. First-visit disclaimer — blocks app bootstrap until user acks once
+    //    per 30 days. Legal shield: documents that every user has been
+    //    informed about the tool's non-official nature.
+    await ensureDisclaimerAcknowledged();
+
     // 1. Build CSS grid layout
     const { mapContainer, panelsGrid } = createLayout();
 
@@ -48,51 +52,68 @@ export async function initApp(): Promise<void> {
     const mapShell = new MapShell('map');
     ctx.map = mapShell;
 
-    // 3. Instantiate panels (slim layout — chat is floating, not tabbed)
-    const outbreaksPanel = new DiseaseOutbreaksPanel();
-    const statsPanel     = new EpidemicStatisticsPanel();
-    const trendPanel     = new TrendChartPanel();
-    const chatPanel      = new ChatPanel();
-    const climatePanel   = new ClimateAlertsPanel();
-    const banner         = new BreakingNewsBanner();
+    // Brand header — logo + name + non-official framing (top-left map overlay)
+    const brandHeader = h('div', { className: 'brand-header' },
+      h('img', { className: 'brand-header-logo', src: '/logo.svg', alt: 'Epidemic Monitor' }),
+      h('div', { className: 'brand-header-text' },
+        h('div', { className: 'brand-header-title' }, 'Epidemic Monitor'),
+        h('div', { className: 'brand-header-tagline' }, 'Công cụ tham khảo · AI tổng hợp từ báo chí · Không thay thế CDC'),
+      ),
+    );
+    mapContainer.appendChild(brandHeader);
 
-    // 4. Mount panels into 2 tabs (Tools tab removed; Case Report removed)
-    const tabGroups: Record<string, { label: string; panels: HTMLElement[] }> = {
-      dashboard: { label: 'Dashboard', panels: [outbreaksPanel.el, climatePanel.el] },
-      analysis:  { label: 'Analysis',  panels: [statsPanel.el, trendPanel.el] },
-    };
+    // 3. Instantiate panels (single view — chat is floating, stats/trend removed)
+    const outbreaksPanel    = new DiseaseOutbreaksPanel();
+    const topDiseasesPanel  = new TopDiseasesPanel();
+    const chatPanel         = new ChatPanel();
+    const climatePanel      = new ClimateAlertsPanel();
+    const banner            = new BreakingNewsBanner();
 
-    // Build tab bar
-    const tabBar = h('div', { className: 'panel-tab-bar' });
-    let activeTab = 'dashboard';
+    // 4. Flat panel list — climate forecast panel hidden (kept off for now,
+    //    still computed for early-warning markers on the map).
+    const panels: HTMLElement[] = [outbreaksPanel.el, topDiseasesPanel.el];
 
-    // Alert summary strip — only visible in Dashboard tab, shows counts per level
+    // Disclaimer strip — mandatory framing at the top of the dashboard.
+    // Legal positioning: app is an automated news aggregator, not an official
+    // health authority announcement. Links to Bộ Y tế + CDC demonstrate due
+    // diligence and give users a clear escape hatch to verified sources.
+    const disclaimer = h('div', { className: 'dashboard-disclaimer' },
+      h('span', { className: 'dashboard-disclaimer-icon' }, '⚠️'),
+      h('span', { className: 'dashboard-disclaimer-text' },
+        h('strong', {}, 'Dữ liệu tham khảo, do AI tự động tổng hợp từ báo chí công khai.'),
+        ' Không phải công bố chính thức. Để có thông tin chính xác, vui lòng tham khảo ',
+        h('a', {
+          href: 'https://moh.gov.vn',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        }, 'Bộ Y tế'),
+        ' · ',
+        h('a', {
+          href: 'https://vncdc.gov.vn',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        }, 'Cục Y tế dự phòng'),
+        ' · ',
+        h('a', {
+          href: 'https://hcdc.vn',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        }, 'HCDC'),
+        ' · CDC các tỉnh. ',
+        h('a', {
+          href: '/terms.html',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          className: 'dashboard-disclaimer-terms-link',
+        }, 'Điều khoản →'),
+      ),
+    );
+
+    // Alert summary strip — shows counts per severity level
     const summaryStrip = h('div', { className: 'alert-summary-strip' });
 
-    function showTab(tabId: string): void {
-      activeTab = tabId;
-      for (const btn of tabBar.querySelectorAll('.panel-tab-btn')) {
-        btn.classList.toggle('panel-tab-btn--active', (btn as HTMLElement).dataset['tab'] === tabId);
-      }
-      for (const [id, group] of Object.entries(tabGroups)) {
-        for (const el of group.panels) {
-          el.style.display = id === tabId ? '' : 'none';
-        }
-      }
-      // Summary strip only relevant on Dashboard
-      summaryStrip.style.display = tabId === 'dashboard' ? '' : 'none';
-    }
-
-    for (const [id, group] of Object.entries(tabGroups)) {
-      const btn = h('button', {
-        className: `panel-tab-btn${id === activeTab ? ' panel-tab-btn--active' : ''}`,
-        dataset: { tab: id },
-      }, group.label);
-      btn.addEventListener('click', () => showTab(id));
-      tabBar.appendChild(btn);
-    }
-
-    // Data age indicator + refresh button
+    // Top bar — just data age + refresh (no tab buttons)
+    const tabBar = h('div', { className: 'panel-tab-bar' });
     const dataAge = h('span', { className: 'data-age-indicator' }, 'Loading...');
     const refreshBtn = h('button', { className: 'data-refresh-btn', title: 'Refresh data' }, '⟳');
     const rightGroup = h('div', { className: 'tab-bar-right' }, dataAge, refreshBtn);
@@ -133,8 +154,9 @@ export async function initApp(): Promise<void> {
     }
     panelsGrid.insertBefore(timelineBar, tabBar.nextSibling);
 
-    // Insert summary strip after the timeline bar
-    panelsGrid.insertBefore(summaryStrip, timelineBar.nextSibling);
+    // Insert disclaimer + summary strip after the timeline bar (disclaimer first)
+    panelsGrid.insertBefore(disclaimer, timelineBar.nextSibling);
+    panelsGrid.insertBefore(summaryStrip, disclaimer.nextSibling);
 
     /** Update count badges on each timeline day button after data loads. */
     function updateTimelineCounts(allOutbreaks: DiseaseOutbreakItem[]): void {
@@ -165,25 +187,24 @@ export async function initApp(): Promise<void> {
           h('span', { className: 'summary-pill-count' }, String(count)),
           h('span', { className: 'summary-pill-label' }, label),
         );
-      summaryStrip.appendChild(pill(alertCnt, 'Alert', 'summary-pill--alert'));
-      summaryStrip.appendChild(pill(warnCnt,  'Warning', 'summary-pill--warning'));
-      summaryStrip.appendChild(pill(watchCnt, 'Watch', 'summary-pill--watch'));
+      // Legal-safe pill labels: describe media coverage volume, not an
+      // epidemiological severity judgment. "Nhiều tin" ≠ "ca tử vong cao".
+      summaryStrip.appendChild(pill(alertCnt, 'Nhiều tin',  'summary-pill--alert'));
+      summaryStrip.appendChild(pill(warnCnt,  'Vài tin',    'summary-pill--warning'));
+      summaryStrip.appendChild(pill(watchCnt, 'Ít tin',     'summary-pill--watch'));
       summaryStrip.appendChild(
-        h('div', { className: 'summary-total' }, `${items.length} điểm nóng`),
+        h('div', { className: 'summary-total' }, `${items.length} tin trong 7 ngày qua`),
       );
     }
 
-    // Mount all panels (visibility controlled by showTab)
-    for (const group of Object.values(tabGroups)) {
-      for (const el of group.panels) panelsGrid.appendChild(el);
-    }
-    showTab('dashboard');
+    // Mount all panels (single flat view)
+    for (const el of panels) panelsGrid.appendChild(el);
 
-    // Mount floating chat widget — chat icon (FAB) + collapsible overlay
+    // Mount floating chat widget — chat bubble FAB + collapsible overlay
     const chatOverlay = h('div', { className: 'chat-overlay' }, chatPanel.el);
     const chatFab = h('button', {
       className: 'chat-fab',
-      title: 'AI Assistant — Hỏi đáp về dữ liệu dịch bệnh',
+      title: 'Trợ lý AI — Hỏi đáp về dữ liệu dịch bệnh',
     }, '💬');
     let chatOpen = false;
     chatFab.addEventListener('click', () => {
@@ -195,12 +216,19 @@ export async function initApp(): Promise<void> {
     document.body.appendChild(chatOverlay);
     document.body.appendChild(chatFab);
 
-    // Footer — prominent author credit card with avatar + social links
+    // Footer — prominent author credit card with avatar + social links + legal links
     const footer = h('div', { className: 'author-footer' },
       h('div', { className: 'author-footer-avatar' }, 'PN'),
       h('div', { className: 'author-footer-info' },
         h('span', { className: 'author-footer-name' }, 'Phúc Nguyễn'),
         h('span', { className: 'author-footer-tagline' }, 'Creator · Epidemic Monitor'),
+        h('span', { className: 'author-footer-legal' },
+          h('a', { href: '/terms.html', target: '_blank', rel: 'noopener noreferrer' }, 'Điều khoản'),
+          ' · ',
+          h('a', {
+            href: 'mailto:phucnt0@gmail.com?subject=[Epidemic%20Monitor]%20Takedown%20request',
+          }, 'Báo cáo nội dung sai'),
+        ),
       ),
       h('div', { className: 'author-footer-links' },
         h('a', { href: 'https://github.com/phuc-nt', target: '_blank', rel: 'noopener noreferrer', title: 'GitHub', 'aria-label': 'GitHub' }, 'GH'),
@@ -211,11 +239,10 @@ export async function initApp(): Promise<void> {
     mapContainer.appendChild(footer);
 
     // 5. Store panel refs in context
-    ctx.panels.set(outbreaksPanel.id, outbreaksPanel);
-    ctx.panels.set(climatePanel.id,   climatePanel);
-    ctx.panels.set(statsPanel.id,     statsPanel);
-    ctx.panels.set(chatPanel.id,      chatPanel);
-    ctx.panels.set(trendPanel.id,     trendPanel);
+    ctx.panels.set(outbreaksPanel.id,   outbreaksPanel);
+    ctx.panels.set(climatePanel.id,     climatePanel);
+    ctx.panels.set(topDiseasesPanel.id, topDiseasesPanel);
+    ctx.panels.set(chatPanel.id,        chatPanel);
 
     // 6. Mount map layer controls (top-left overlay on the map)
     new MapLayerControls(mapContainer);
@@ -267,25 +294,32 @@ export async function initApp(): Promise<void> {
       } catch {
         // Fallback to individual calls if bulk endpoint unavailable
         invalidateCache('disease-outbreaks');
-        invalidateCache('epidemic-stats');
         invalidateCache('health-news');
 
-        const [outbreaks, stats, news] = await Promise.all([
+        const [outbreaks, news] = await Promise.all([
           fetchDiseaseOutbreaks(),
-          fetchEpidemicStats(),
           fetchHealthNews(),
         ]);
         lastFetchTime = Date.now();
         updateDataAge();
+        // Derive minimal stats placeholder (UI no longer displays server stats)
+        const stats: EpidemicStats = {
+          totalOutbreaks: outbreaks.length,
+          activeAlerts: outbreaks.filter(o => o.alertLevel === 'alert').length,
+          countriesAffected: 0,
+          topDiseases: [],
+          lastUpdated: Date.now(),
+        };
         return { outbreaks, stats, news };
       }
     }
 
-    function applyData(outbreaks: DiseaseOutbreakItem[], stats: EpidemicStats, news: NewsItem[]): void {
+    function applyData(outbreaks: DiseaseOutbreakItem[], _stats: EpidemicStats, news: NewsItem[]): void {
       ctx.outbreaks = outbreaks;
       ctx.news = news;
 
       outbreaksPanel.updateData(outbreaks);
+      topDiseasesPanel.updateData(outbreaks);
 
       // Update timeline count badges + summary strip with latest data
       updateTimelineCounts(outbreaks);
@@ -297,7 +331,7 @@ export async function initApp(): Promise<void> {
         const top = alertOutbreaks[0];
         const totalCases = alertOutbreaks.reduce((s, o) => s + (o.cases ?? 0), 0);
         banner.show(
-          `${diseaseLabel(top.disease)} — ${alertOutbreaks.length} ổ dịch cấp ALERT, ${totalCases.toLocaleString()} ca`,
+          `${diseaseLabel(top.disease)}: ${alertOutbreaks.length} tin báo chí đang đưa, khoảng ${totalCases.toLocaleString('vi-VN')} ca được đề cập`,
           'alert',
         );
       }
@@ -305,7 +339,7 @@ export async function initApp(): Promise<void> {
 
     // Initial fetch
     outbreaksPanel.showLoading();
-    statsPanel.showLoading();
+    topDiseasesPanel.showLoading();
 
     let outbreaks: DiseaseOutbreakItem[];
     let stats: EpidemicStats;
@@ -355,31 +389,19 @@ export async function initApp(): Promise<void> {
     // Update age indicator every 30 seconds
     setInterval(updateDataAge, 30_000);
 
-    // Snapshot store: save current data + compute trends
+    // Snapshot store: save current data + detect escalations (watch→warning→alert)
     try {
       await initSnapshotDB();
       await saveSnapshot(outbreaks);
       void pruneOldSnapshots(30);
 
       const snapshots = await getRecentSnapshots(30);
-      const delta = computeStatsDelta(snapshots);
-      statsPanel.updateDataWithDelta(stats, delta);
-
-      // Feed trend chart with top disease
-      const trends = computeAllTrends(snapshots);
-      if (trends.length > 0) {
-        const top = trends[0];
-        trendPanel.setData(top.disease, top.points.map(p => p.value));
-      }
-
-      // Detect alert escalations (watch→warning→alert)
       const escalations = detectEscalations(snapshots);
       if (escalations.length > 0) {
         outbreaksPanel.setEscalations(escalations);
       }
     } catch {
-      // IndexedDB unavailable — show stats without delta
-      statsPanel.updateData(stats);
+      // IndexedDB unavailable — escalations feature disabled silently
     }
 
     // Build per-country risk score map for choropleth
@@ -487,7 +509,7 @@ export async function initApp(): Promise<void> {
     // 12. Initialize LLM (non-blocking — chat works without it)
     initLLM().then((provider) => {
       if (provider) {
-        chatPanel.setStatus(`${provider.config.name} (${provider.config.model})`, true);
+        chatPanel.setStatus('Trực tuyến', true);
 
         // Wire data pipeline LLM functions
         setLLMComplete(complete);
@@ -516,10 +538,10 @@ export async function initApp(): Promise<void> {
           });
         };
       } else {
-        chatPanel.setStatus('No LLM available — set OpenRouter API key in settings', false);
+        chatPanel.setStatus('Chưa kết nối', false);
       }
     }).catch(() => {
-      chatPanel.setStatus('LLM init failed', false);
+      chatPanel.setStatus('Không kết nối được', false);
     });
 
     console.info('[EpidemicMonitor] App initialized');

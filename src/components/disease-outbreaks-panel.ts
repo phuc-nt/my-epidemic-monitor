@@ -11,10 +11,12 @@ import type { DiseaseOutbreakItem, AlertLevel } from '@/types';
 import type { EscalationInfo } from '@/services/trend-calculator';
 import { diseaseLabel } from '@/components/case-report-panel-data';
 
+// Legal-safe labels: describe media coverage volume, not epidemiological severity.
+// "Nhiều tin" means "many news articles reference this", not "this is a bad outbreak".
 const ALERT_LABELS: Record<AlertLevel, string> = {
-  alert: 'ALERT',
-  warning: 'WARNING',
-  watch: 'WATCH',
+  alert: 'NHIỀU TIN',
+  warning: 'VÀI TIN',
+  watch: 'ÍT TIN',
 };
 
 const ALERT_COLORS: Record<AlertLevel, string> = {
@@ -26,10 +28,10 @@ const ALERT_COLORS: Record<AlertLevel, string> = {
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return `${mins} phút trước`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return `${hrs} giờ trước`;
+  return `${Math.floor(hrs / 24)} ngày trước`;
 }
 
 export class DiseaseOutbreaksPanel extends Panel {
@@ -47,7 +49,7 @@ export class DiseaseOutbreaksPanel extends Panel {
   private _listEl: HTMLElement;
 
   constructor() {
-    super({ id: 'disease-outbreaks', title: 'Disease Outbreaks', showCount: true, defaultRowSpan: 3 });
+    super({ id: 'disease-outbreaks', title: 'Báo chí đưa tin', showCount: true, defaultRowSpan: 3 });
 
     this._filterBar   = this._buildFilterBar();
     this._provinceChip = this._buildProvinceChip();

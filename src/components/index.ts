@@ -5,8 +5,7 @@ export { MapShell } from '@/components/map-shell';
 
 // Disease panels
 export { DiseaseOutbreaksPanel } from '@/components/disease-outbreaks-panel';
-export { EpidemicStatisticsPanel } from '@/components/epidemic-statistics-panel';
-export { TrendChartPanel } from '@/components/trend-chart-panel';
+export { TopDiseasesPanel } from '@/components/top-diseases-panel';
 
 // Map overlays
 export { MapPopup } from '@/components/map-popup';
