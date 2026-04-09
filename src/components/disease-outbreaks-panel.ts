@@ -34,6 +34,15 @@ function relativeTime(ts: number): string {
   return `${Math.floor(hrs / 24)} ngày trước`;
 }
 
+/** Local-timezone YYYY-MM-DD so it matches the timeline filter (also local). */
+function localDay(ts: number): string {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export class DiseaseOutbreaksPanel extends Panel {
   private _outbreaks: DiseaseOutbreakItem[] = [];
   private _escalations: Set<string> = new Set();
@@ -203,8 +212,7 @@ export class DiseaseOutbreaksPanel extends Panel {
       if (this._filter && o.alertLevel !== this._filter) return false;
       if (this._provinceFilter && o.province !== this._provinceFilter) return false;
       if (this._dateFilter) {
-        const day = new Date(o.publishedAt).toISOString().split('T')[0];
-        if (day !== this._dateFilter) return false;
+        if (localDay(o.publishedAt) !== this._dateFilter) return false;
       }
       if (this._search) {
         const hay = `${o.disease} ${o.country} ${o.province ?? ''}`.toLowerCase();
@@ -316,7 +324,7 @@ export class DiseaseOutbreaksPanel extends Panel {
       ? h('a', { href: safeUrl, target: '_blank', rel: 'noopener noreferrer', className: 'outbreak-row-link' }, '↗')
       : null;
 
-    const isToday = new Date(item.publishedAt).toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+    const isToday = localDay(item.publishedAt) === localDay(Date.now());
     const todayClass = isToday ? ' outbreak-row--today' : '';
     const row = h('div', { className: `outbreak-row outbreak-row--${item.alertLevel}${todayClass}` },
       h('div', { className: 'outbreak-row-header' }, badge, title, ...(link ? [link] : [])),

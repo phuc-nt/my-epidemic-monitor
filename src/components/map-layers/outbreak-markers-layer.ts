@@ -21,9 +21,14 @@ const ALERT_RADII: Record<AlertLevel, number> = {
   watch:   12_000,
 };
 
-/** Extract YYYY-MM-DD from a UTC timestamp. */
+/** Extract YYYY-MM-DD from a timestamp using LOCAL timezone, so the
+ *  selectedDate filter from the timeline (which is also local) matches. */
 function dayOf(ts: number): string {
-  return new Date(ts).toISOString().split('T')[0];
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /**

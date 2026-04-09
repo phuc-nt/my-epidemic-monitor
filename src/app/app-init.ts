@@ -121,14 +121,23 @@ export async function initApp(): Promise<void> {
 
     panelsGrid.insertBefore(tabBar, panelsGrid.firstChild);
 
-    // Timeline bar — 7-day date selector
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Timeline bar — 7-day date selector. Uses LOCAL timezone YYYY-MM-DD
+    // so "Hôm nay" in Vietnam (UTC+7) lines up with the date users see
+    // on published_at instead of drifting to UTC day. Otherwise an item
+    // published at 01:00 VN time shows up on the previous UTC day bucket.
+    const localDateString = (d: Date): string => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const todayStr = localDateString(new Date());
     let _selectedDate = todayStr;
     const timelineBar = h('div', { className: 'timeline-bar' });
     const timelineDays = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i)); // oldest → newest
-      return d.toISOString().split('T')[0];
+      return localDateString(d);
     });
 
     const DOW_VN = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -162,7 +171,7 @@ export async function initApp(): Promise<void> {
     function updateTimelineCounts(allOutbreaks: DiseaseOutbreakItem[]): void {
       for (const [day, btn] of tlBtns) {
         const count = allOutbreaks.filter(o =>
-          new Date(o.publishedAt).toISOString().split('T')[0] === day
+          localDateString(new Date(o.publishedAt)) === day
         ).length;
         const badge = btn.querySelector('.tl-count') as HTMLElement | null;
         if (badge) {
@@ -175,7 +184,7 @@ export async function initApp(): Promise<void> {
     /** Rebuild the alert summary strip for a given date's outbreaks. */
     function updateSummaryStrip(allOutbreaks: DiseaseOutbreakItem[], date?: string): void {
       const items = date
-        ? allOutbreaks.filter(o => new Date(o.publishedAt).toISOString().split('T')[0] === date)
+        ? allOutbreaks.filter(o => localDateString(new Date(o.publishedAt)) === date)
         : allOutbreaks;
       const alertCnt   = items.filter(o => o.alertLevel === 'alert').length;
       const warnCnt    = items.filter(o => o.alertLevel === 'warning').length;
