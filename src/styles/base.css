@@ -45,6 +45,144 @@ html, body {
   flex-direction: column;
 }
 
+/* ── App root layout (header on top, shell below) ────────── */
+
+.app-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Global header — brand + disclaimer + author in a single bar spanning
+   the full width. Replaces the map-overlay brand pill, dashboard
+   disclaimer strip, and map-container author footer. */
+.app-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 16px;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  color: #e2e8f0;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+  min-height: 56px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+  z-index: 20;
+}
+
+.app-header-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.app-header-logo { width: 40px; height: 40px; flex-shrink: 0; }
+.app-header-title-group { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.app-header-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+.app-header-tagline {
+  font-size: 11px;
+  color: rgba(255,255,255,0.65);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-header-tagline strong { color: #fbbf24; font-weight: 600; }
+
+.app-header-disclaimer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #fde68a;
+  min-width: 0;
+}
+.app-header-disclaimer-icon { flex-shrink: 0; font-size: 14px; }
+.app-header-disclaimer-text { min-width: 0; }
+.app-header-disclaimer-text a {
+  color: #fcd34d;
+  text-decoration: underline;
+  font-weight: 600;
+}
+.app-header-disclaimer-text a:hover { color: #fff; }
+
+.app-header-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 4px 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+.app-header-author-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(59,130,246,0.45);
+}
+.app-header-author-info { display: flex; flex-direction: column; line-height: 1.2; }
+.app-header-author-name { font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+.app-header-author-links { display: flex; gap: 4px; margin-top: 2px; }
+.app-header-author-links a {
+  width: 22px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.1);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+.app-header-author-links a:hover {
+  background: rgba(59,130,246,0.4);
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 8px 12px;
+    padding: 8px 12px;
+  }
+  .app-header-disclaimer {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+  .app-header-author { grid-column: 2; }
+  .app-header-tagline { font-size: 10px; }
+}
+@media (max-width: 520px) {
+  .app-header-logo { width: 32px; height: 32px; }
+  .app-header-title { font-size: 14px; }
+  .app-header-tagline { font-size: 9.5px; }
+  .app-header-disclaimer { font-size: 10.5px; padding: 5px 10px; }
+  .app-header-author-name { display: none; }
+}
+
 /* ── App shell layout ─────────────────────────────────────── */
 
 .app-shell {
@@ -313,95 +451,6 @@ html, body {
 .outbreak-row-link:hover { text-decoration: underline; }
 .outbreak-empty { color: var(--text-muted); font-size: 12px; text-align: center; padding: 12px; }
 .outbreak-unlocated-header { font-size: 11px; color: var(--text-muted); padding: 8px 4px 4px; border-top: 1px solid var(--border); margin-top: 6px; font-weight: 600; }
-
-/* Author footer — prominent card fixed bottom-left of map */
-.author-footer {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  z-index: 10;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.1);
-  color: rgba(255,255,255,0.75);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.author-footer:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.15);
-}
-.author-footer-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(59,130,246,0.4);
-}
-.author-footer-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.2;
-}
-.author-footer-name {
-  font-weight: 700;
-  color: #fff;
-  font-size: 13px;
-  letter-spacing: 0.2px;
-}
-.author-footer-tagline {
-  font-size: 10px;
-  color: rgba(255,255,255,0.55);
-}
-.author-footer-legal {
-  font-size: 9.5px;
-  color: rgba(255,255,255,0.5);
-  margin-top: 1px;
-}
-.author-footer-legal a {
-  color: rgba(255,255,255,0.7);
-  text-decoration: none;
-}
-.author-footer-legal a:hover { color: #fff; text-decoration: underline; }
-.author-footer-links {
-  display: flex;
-  gap: 4px;
-  margin-left: 6px;
-  padding-left: 10px;
-  border-left: 1px solid rgba(255,255,255,0.15);
-}
-.author-footer-links a {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.85);
-  text-decoration: none;
-  font-size: 11px;
-  font-weight: 600;
-  transition: background 0.15s, transform 0.15s;
-}
-.author-footer-links a:hover {
-  background: rgba(59,130,246,0.3);
-  color: #fff;
-  transform: scale(1.1);
-}
 
 /* 2-column grid: located vs unlocated outbreaks */
 .outbreak-2col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -773,79 +822,6 @@ html, body {
   .em-disclaimer-title { font-size: 18px; }
   .em-disclaimer-logo { width: 42px; height: 42px; }
 }
-
-/* ── Brand header (map top-left overlay) ─────────────────── */
-
-.brand-header {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px 8px 10px;
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border-radius: 999px;
-  border: 1px solid rgba(0,0,0,0.08);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-  pointer-events: none;
-}
-.brand-header-logo {
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-}
-.brand-header-text { display: flex; flex-direction: column; line-height: 1.2; }
-.brand-header-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: 0.2px;
-}
-.brand-header-tagline {
-  font-size: 10px;
-  color: #64748b;
-  margin-top: 2px;
-  font-style: italic;
-}
-@media (max-width: 600px) {
-  .brand-header { padding: 6px 10px 6px 8px; gap: 8px; }
-  .brand-header-logo { width: 30px; height: 30px; }
-  .brand-header-title { font-size: 12px; }
-  .brand-header-tagline { font-size: 9px; }
-}
-
-/* ── Dashboard disclaimer ────────────────────────────────── */
-
-.dashboard-disclaimer {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fffbeb;
-  border-bottom: 1px solid #fcd34d;
-  font-size: 11.5px;
-  line-height: 1.45;
-  color: #78350f;
-  flex-shrink: 0;
-}
-.dashboard-disclaimer-icon {
-  flex-shrink: 0;
-  font-size: 14px;
-  line-height: 1.2;
-  color: #d97706;
-}
-.dashboard-disclaimer-text strong { font-weight: 700; }
-.dashboard-disclaimer-text a {
-  color: #b45309;
-  text-decoration: underline;
-  font-weight: 600;
-}
-.dashboard-disclaimer-text a:hover { color: #78350f; }
 
 /* ── Alert summary strip ─────────────────────────────────── */
 

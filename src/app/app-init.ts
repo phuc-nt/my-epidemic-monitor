@@ -46,21 +46,56 @@ export async function initApp(): Promise<void> {
     await ensureDisclaimerAcknowledged();
 
     // 1. Build CSS grid layout
-    const { mapContainer, panelsGrid } = createLayout();
+    const { appHeader, mapContainer, panelsGrid } = createLayout();
+
+    // Global header — consolidated brand + disclaimer + author + legal links.
+    // Moves everything out of the map overlay and the dashboard strip so both
+    // viewports stay focused on data.
+    const headerBrand = h('div', { className: 'app-header-brand' },
+      h('img', { className: 'app-header-logo', src: '/logo.svg', alt: 'Epidemic Monitor' }),
+      h('div', { className: 'app-header-title-group' },
+        h('div', { className: 'app-header-title' }, 'Epidemic Monitor'),
+        h('div', { className: 'app-header-tagline' },
+          'Công cụ tham khảo · AI tổng hợp từ báo chí · ',
+          h('strong', {}, 'Không thay thế CDC'),
+        ),
+      ),
+    );
+
+    const headerDisclaimer = h('div', { className: 'app-header-disclaimer' },
+      h('span', { className: 'app-header-disclaimer-icon' }, '⚠️'),
+      h('span', { className: 'app-header-disclaimer-text' },
+        'Dữ liệu do AI tổng hợp từ báo chí công khai, không phải công bố chính thức. Đối chiếu ',
+        h('a', { href: 'https://moh.gov.vn', target: '_blank', rel: 'noopener noreferrer' }, 'Bộ Y tế'),
+        ' · ',
+        h('a', { href: 'https://vncdc.gov.vn', target: '_blank', rel: 'noopener noreferrer' }, 'Cục YTDP'),
+        ' · ',
+        h('a', { href: 'https://hcdc.vn', target: '_blank', rel: 'noopener noreferrer' }, 'HCDC'),
+        ' trước khi ra quyết định.',
+      ),
+    );
+
+    const headerAuthor = h('div', { className: 'app-header-author', title: 'Phúc Nguyễn — creator' },
+      h('div', { className: 'app-header-author-avatar' }, 'PN'),
+      h('div', { className: 'app-header-author-info' },
+        h('span', { className: 'app-header-author-name' }, 'Phúc Nguyễn'),
+        h('div', { className: 'app-header-author-links' },
+          h('a', { href: 'https://github.com/phuc-nt', target: '_blank', rel: 'noopener noreferrer', title: 'GitHub' }, 'GH'),
+          h('a', { href: 'https://www.linkedin.com/in/nguyen-trong-phuc', target: '_blank', rel: 'noopener noreferrer', title: 'LinkedIn' }, 'in'),
+          h('a', { href: 'https://phucnt.substack.com', target: '_blank', rel: 'noopener noreferrer', title: 'Substack' }, 'SS'),
+          h('a', { href: '/terms.html', target: '_blank', rel: 'noopener noreferrer', title: 'Điều khoản' }, 'ĐK'),
+          h('a', { href: 'mailto:phucnt0@gmail.com?subject=[Epidemic%20Monitor]%20Takedown%20request', title: 'Báo cáo nội dung sai' }, '✉'),
+        ),
+      ),
+    );
+
+    appHeader.appendChild(headerBrand);
+    appHeader.appendChild(headerDisclaimer);
+    appHeader.appendChild(headerAuthor);
 
     // 2. Mount MapShell
     const mapShell = new MapShell('map');
     ctx.map = mapShell;
-
-    // Brand header — logo + name + non-official framing (top-left map overlay)
-    const brandHeader = h('div', { className: 'brand-header' },
-      h('img', { className: 'brand-header-logo', src: '/logo.svg', alt: 'Epidemic Monitor' }),
-      h('div', { className: 'brand-header-text' },
-        h('div', { className: 'brand-header-title' }, 'Epidemic Monitor'),
-        h('div', { className: 'brand-header-tagline' }, 'Công cụ tham khảo · AI tổng hợp từ báo chí · Không thay thế CDC'),
-      ),
-    );
-    mapContainer.appendChild(brandHeader);
 
     // 3. Instantiate panels (single view — chat is floating, stats/trend removed)
     const outbreaksPanel    = new DiseaseOutbreaksPanel();
@@ -72,42 +107,6 @@ export async function initApp(): Promise<void> {
     // 4. Flat panel list — climate forecast panel hidden (kept off for now,
     //    still computed for early-warning markers on the map).
     const panels: HTMLElement[] = [outbreaksPanel.el, topDiseasesPanel.el];
-
-    // Disclaimer strip — mandatory framing at the top of the dashboard.
-    // Legal positioning: app is an automated news aggregator, not an official
-    // health authority announcement. Links to Bộ Y tế + CDC demonstrate due
-    // diligence and give users a clear escape hatch to verified sources.
-    const disclaimer = h('div', { className: 'dashboard-disclaimer' },
-      h('span', { className: 'dashboard-disclaimer-icon' }, '⚠️'),
-      h('span', { className: 'dashboard-disclaimer-text' },
-        h('strong', {}, 'Dữ liệu tham khảo, do AI tự động tổng hợp từ báo chí công khai.'),
-        ' Không phải công bố chính thức. Để có thông tin chính xác, vui lòng tham khảo ',
-        h('a', {
-          href: 'https://moh.gov.vn',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        }, 'Bộ Y tế'),
-        ' · ',
-        h('a', {
-          href: 'https://vncdc.gov.vn',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        }, 'Cục Y tế dự phòng'),
-        ' · ',
-        h('a', {
-          href: 'https://hcdc.vn',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        }, 'HCDC'),
-        ' · CDC các tỉnh. ',
-        h('a', {
-          href: '/terms.html',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-          className: 'dashboard-disclaimer-terms-link',
-        }, 'Điều khoản →'),
-      ),
-    );
 
     // Alert summary strip — shows counts per severity level
     const summaryStrip = h('div', { className: 'alert-summary-strip' });
@@ -163,9 +162,8 @@ export async function initApp(): Promise<void> {
     }
     panelsGrid.insertBefore(timelineBar, tabBar.nextSibling);
 
-    // Insert disclaimer + summary strip after the timeline bar (disclaimer first)
-    panelsGrid.insertBefore(disclaimer, timelineBar.nextSibling);
-    panelsGrid.insertBefore(summaryStrip, disclaimer.nextSibling);
+    // Insert summary strip after the timeline bar (disclaimer moved to header)
+    panelsGrid.insertBefore(summaryStrip, timelineBar.nextSibling);
 
     /** Update count badges on each timeline day button after data loads. */
     function updateTimelineCounts(allOutbreaks: DiseaseOutbreakItem[]): void {
@@ -225,27 +223,7 @@ export async function initApp(): Promise<void> {
     document.body.appendChild(chatOverlay);
     document.body.appendChild(chatFab);
 
-    // Footer — prominent author credit card with avatar + social links + legal links
-    const footer = h('div', { className: 'author-footer' },
-      h('div', { className: 'author-footer-avatar' }, 'PN'),
-      h('div', { className: 'author-footer-info' },
-        h('span', { className: 'author-footer-name' }, 'Phúc Nguyễn'),
-        h('span', { className: 'author-footer-tagline' }, 'Creator · Epidemic Monitor'),
-        h('span', { className: 'author-footer-legal' },
-          h('a', { href: '/terms.html', target: '_blank', rel: 'noopener noreferrer' }, 'Điều khoản'),
-          ' · ',
-          h('a', {
-            href: 'mailto:phucnt0@gmail.com?subject=[Epidemic%20Monitor]%20Takedown%20request',
-          }, 'Báo cáo nội dung sai'),
-        ),
-      ),
-      h('div', { className: 'author-footer-links' },
-        h('a', { href: 'https://github.com/phuc-nt', target: '_blank', rel: 'noopener noreferrer', title: 'GitHub', 'aria-label': 'GitHub' }, 'GH'),
-        h('a', { href: 'https://www.linkedin.com/in/nguyen-trong-phuc', target: '_blank', rel: 'noopener noreferrer', title: 'LinkedIn', 'aria-label': 'LinkedIn' }, 'in'),
-        h('a', { href: 'https://phucnt.substack.com', target: '_blank', rel: 'noopener noreferrer', title: 'Substack', 'aria-label': 'Substack' }, 'SS'),
-      ),
-    );
-    mapContainer.appendChild(footer);
+    // (Footer author card moved to global header)
 
     // 5. Store panel refs in context
     ctx.panels.set(outbreaksPanel.id,   outbreaksPanel);

@@ -1,13 +1,20 @@
 import { h } from '@/utils/dom-utils';
 
 /**
- * Creates the top-level CSS grid layout and mounts it into #app.
- * Returns references to the map container and panels grid.
+ * Creates the top-level app layout:
  *
- * Desktop: map (left 60%) | panels grid (right 40%)
- * Mobile (<768px): stacked vertically, map on top
+ *   ┌─────────────────────────────────────────────┐
+ *   │            global header                    │  ← appHeader
+ *   ├──────────────────┬──────────────────────────┤
+ *   │   map-container  │      panels-grid         │  ← appShell
+ *   └──────────────────┴──────────────────────────┘
+ *
+ * The global header holds brand identity, disclaimer, author credit,
+ * and legal links in one consolidated place — keeps the map and the
+ * dashboard clean of chrome.
  */
 export interface AppLayout {
+  appHeader: HTMLElement;
   mapContainer: HTMLElement;
   panelsGrid: HTMLElement;
 }
@@ -16,13 +23,14 @@ export function createLayout(): AppLayout {
   const app = document.getElementById('app');
   if (!app) throw new Error('createLayout: #app element not found');
 
+  const appHeader   = h('div', { className: 'app-header' });
   const mapContainer = h('div', { id: 'map', className: 'map-container' });
-
-  const panelsGrid = h('div', { className: 'panels-grid' });
+  const panelsGrid   = h('div', { className: 'panels-grid' });
 
   const shell = h('div', { className: 'app-shell' }, mapContainer, panelsGrid);
+  const root  = h('div', { className: 'app-root' }, appHeader, shell);
 
-  app.appendChild(shell);
+  app.appendChild(root);
 
-  return { mapContainer, panelsGrid };
+  return { appHeader, mapContainer, panelsGrid };
 }
