@@ -3,6 +3,7 @@
  * Used by outbreaks.ts, stats.ts, and countries.ts to avoid internal HTTP self-calls.
  */
 import { diseaseLabel } from './disease-labels';
+import { casesPerMillion, populationK } from './vn-province-population';
 
 /** Vietnam province centroids — used to add lat/lng to pipeline hotspot items. */
 const VN_PROVINCES: Record<string, [number, number]> = {
@@ -148,25 +149,34 @@ export interface OutbreakItem {
 }
 
 /**
- * Cap the pipeline-reported alert level by the actual case count.
- * Prevents the "1 ca × 100 báo viết lại → cả tỉnh đỏ chét" failure mode.
+ * Cap the pipeline-reported alert level by cases-per-million inhabitants
+ * instead of absolute case count. This prevents two failure modes at once:
  *
- * Rules:
- *   cases >= 100 → alert allowed
- *   cases 20-99  → cap at warning
- *   cases 1-19   → cap at watch
- *   cases 0/null → cap at watch (only "tin nhắc đến", no confirmed count)
+ *   1. "1 ca × 100 báo re-up → cả tỉnh đỏ chét" (Anh Dũng Phan #2)
+ *   2. "Đông dân thì đỏ chét → chứng minh sự thật hiển nhiên"
+ *      (Anh Dũng Phan #3 — TP.HCM 9M dân sẽ luôn có nhiều tin hơn
+ *       Lai Châu 500k dân dù dịch thực tế không chênh lệch)
+ *
+ * Thresholds (per million inhabitants):
+ *   >= 50 / 1M → alert   (e.g. ~470+ ca TP.HCM, ~30 ca Lai Châu)
+ *   >= 10 / 1M → warning (e.g. ~95 ca TP.HCM, ~5 ca Lai Châu)
+ *   <  10 / 1M → watch
+ *   null/0     → watch
+ *
+ * These match roughly "many tin" vs "a few tin" vs "one tin" intuition.
  */
 function capAlertByCases(
   peakAlert: 'alert' | 'warning' | 'watch',
   cases: number | null | undefined,
+  province: string,
 ): 'alert' | 'warning' | 'watch' {
   const n = cases ?? 0;
+  const perM = n > 0 ? casesPerMillion(n, province) : 0;
   const LEVEL = { watch: 1, warning: 2, alert: 3 } as const;
   const REVERSE = ['', 'watch', 'warning', 'alert'] as const;
   let cap: 1 | 2 | 3 = 1;
-  if (n >= 100) cap = 3;
-  else if (n >= 20) cap = 2;
+  if (perM >= 50) cap = 3;
+  else if (perM >= 10) cap = 2;
   else cap = 1;
   const original = LEVEL[peakAlert] ?? 1;
   const final = Math.min(original, cap) as 1 | 2 | 3;
@@ -196,6 +206,7 @@ export function mapHotspots(hotspots: HotspotRow[]): OutbreakItem[] {
     const alertLevel = capAlertByCases(
       (h.peak_alert as 'alert' | 'warning' | 'watch') ?? 'watch',
       cases,
+      province,
     );
     const articleCount = Number(h.article_count ?? 1);
     const primarySource = extractPrimaryPublisher(String(h.source_urls ?? ''));
@@ -205,10 +216,18 @@ export function mapHotspots(hotspots: HotspotRow[]): OutbreakItem[] {
     const title = articleCount >= 2
       ? `${articleCount} báo đưa tin: ${diseaseLabel(String(h.disease ?? ''))} tại ${locationPart}`
       : `${primarySource || 'Báo chí'} đưa tin: ${diseaseLabel(String(h.disease ?? ''))} tại ${locationPart}`;
-    const casesPart = cases != null
-      ? `Số ca được báo chí đề cập: ~${cases.toLocaleString('vi-VN')} (chưa xác minh độc lập)`
-      : 'Số ca cụ thể chưa được nêu rõ trong bài báo.';
+    let casesPart: string;
+    if (cases != null) {
+      const perM = casesPerMillion(cases, province);
+      const perMStr = perM >= 1 ? `~${perM.toFixed(0)}/1M dân` : `<1/1M dân`;
+      casesPart = `Số ca được báo chí đề cập: ~${cases.toLocaleString('vi-VN')} (${perMStr}, chưa xác minh độc lập)`;
+    } else {
+      casesPart = 'Số ca cụ thể chưa được nêu rõ trong bài báo.';
+    }
     const summary = `Theo ${articleCount} bài báo${primarySource ? ` (${primarySource})` : ''}. ${casesPart}`;
+    // Suppress unused import warning — populationK is re-exported for
+    // downstream consumers who may need raw population lookups.
+    void populationK;
     return {
       id: `pipeline:${h.disease}:${h.province}${districtIdSuf}:${h.day}`,
       disease: String(h.disease ?? ''),
