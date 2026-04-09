@@ -16,8 +16,8 @@ import { ctx, on, emit } from '@/app/app-context';
 import { DiseaseOutbreaksPanel } from '@/components/disease-outbreaks-panel';
 import { TopDiseasesPanel } from '@/components/top-diseases-panel';
 import { MapPopup } from '@/components/map-popup';
-import { ensureDisclaimerAcknowledged } from '@/components/first-visit-disclaimer';
-import { MapLayerControls } from '@/components/map-layer-controls';
+import { ensureDisclaimerAcknowledged, showDisclaimerReview } from '@/components/first-visit-disclaimer';
+import { createMobileTabBar, syncMobileModeClass, isMobileViewport } from '@/components/mobile-tab-bar';
 import { updateMapLayers } from '@/components/map-layers/index';
 
 import { fetchDiseaseOutbreaks } from '@/services/disease-outbreak-service';
@@ -46,46 +46,51 @@ export async function initApp(): Promise<void> {
     await ensureDisclaimerAcknowledged();
 
     // 1. Build CSS grid layout
-    const { appHeader, mapContainer, panelsGrid } = createLayout();
+    const { appHeader, appShell, mapContainer, panelsGrid } = createLayout();
+
+    // Sync initial mobile-mode class — CSS uses it to collapse header
+    syncMobileModeClass();
 
     // Global header — consolidated brand + disclaimer + author + legal links.
-    // Light theme, spans full width above map + dashboard.
+    // Light theme, spans full width above map + dashboard. The ⓘ button is
+    // hidden on desktop (disclaimer card is inline) and visible on mobile
+    // where the card is collapsed to save vertical space.
+    const headerInfoBtn = h('button', {
+      className: 'app-header-info-btn',
+      type: 'button',
+      title: 'Xem điều khoản và disclaimer',
+      'aria-label': 'Điều khoản và disclaimer',
+    }, 'ⓘ');
+    headerInfoBtn.addEventListener('click', () => { void showDisclaimerReview(); });
+
     const headerBrand = h('div', { className: 'app-header-brand' },
       h('img', { className: 'app-header-logo', src: '/logo.svg', alt: 'Epidemic Monitor' }),
       h('div', { className: 'app-header-title-group' },
         h('div', { className: 'app-header-title' }, 'Epidemic Monitor'),
-        h('div', { className: 'app-header-tagline' },
-          'Công cụ tham khảo · AI tổng hợp từ báo chí · ',
-          h('strong', {}, 'Không thay thế CDC'),
-        ),
       ),
+      headerInfoBtn,
     );
 
+    // One-line condensed disclaimer — full text lives in the ⓘ modal.
+    // KISS: short enough to fit on desktop header single row; still carries
+    // the essential "not official" framing required by Nghị định 15/2020.
     const headerDisclaimer = h('div', { className: 'app-header-disclaimer' },
       h('span', { className: 'app-header-disclaimer-icon' }, '⚠️'),
-      h('div', { className: 'app-header-disclaimer-body' },
-        h('div', { className: 'app-header-disclaimer-main' },
-          h('strong', {}, 'Đây không phải nguồn chính thống.'),
-          ' Dữ liệu do AI tự động tổng hợp từ các báo Việt Nam công khai, có thể chậm, chưa đầy đủ hoặc sai sót. Luôn đối chiếu với ',
-          h('a', { href: 'https://moh.gov.vn', target: '_blank', rel: 'noopener noreferrer' }, 'Bộ Y tế'),
-          ' · ',
-          h('a', { href: 'https://vncdc.gov.vn', target: '_blank', rel: 'noopener noreferrer' }, 'Cục YTDP'),
-          ' · ',
-          h('a', { href: 'https://hcdc.vn', target: '_blank', rel: 'noopener noreferrer' }, 'HCDC'),
-          ' · CDC các tỉnh trước khi ra quyết định quan trọng về y tế hay du lịch.',
-        ),
-        h('div', { className: 'app-header-disclaimer-actions' },
-          h('a', {
-            className: 'app-header-disclaimer-terms',
-            href: '/terms.html',
-            target: '_blank',
-            rel: 'noopener noreferrer',
-          }, '📄 Điều khoản sử dụng'),
-          h('a', {
-            className: 'app-header-disclaimer-report',
-            href: 'mailto:phucnt0@gmail.com?subject=[Epidemic%20Monitor]%20Takedown%20request',
-          }, '✉ Báo cáo nội dung sai'),
-        ),
+      h('div', { className: 'app-header-disclaimer-main' },
+        h('strong', {}, 'Không phải nguồn chính thống'),
+        ' — AI tổng hợp từ báo chí VN, có thể sai sót. Đối chiếu Bộ Y tế / CDC trước khi ra quyết định.',
+      ),
+      h('div', { className: 'app-header-disclaimer-actions' },
+        h('a', {
+          className: 'app-header-disclaimer-terms',
+          href: '/terms.html',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        }, '📄 Điều khoản'),
+        h('a', {
+          className: 'app-header-disclaimer-report',
+          href: 'mailto:phucnt0@gmail.com?subject=[Epidemic%20Monitor]%20Takedown%20request',
+        }, '✉ Báo lỗi'),
       ),
     );
 
@@ -219,21 +224,57 @@ export async function initApp(): Promise<void> {
     // Mount all panels (single flat view)
     for (const el of panels) panelsGrid.appendChild(el);
 
-    // Mount floating chat widget — chat bubble FAB + collapsible overlay
+    // Mount chat widget.
+    // Desktop: floating chat bubble FAB + collapsible overlay (bottom-right).
+    // Mobile: chat lives as a full-screen "tab" driven by the bottom tab bar;
+    // the FAB is hidden via CSS under `.mobile-mode`.
     const chatOverlay = h('div', { className: 'chat-overlay' }, chatPanel.el);
     const chatFab = h('button', {
       className: 'chat-fab',
       title: 'Trợ lý AI — Hỏi đáp về dữ liệu dịch bệnh',
     }, '💬');
     let chatOpen = false;
-    chatFab.addEventListener('click', () => {
-      chatOpen = !chatOpen;
-      chatOverlay.classList.toggle('chat-overlay--open', chatOpen);
-      chatFab.classList.toggle('chat-fab--open', chatOpen);
-      chatFab.textContent = chatOpen ? '✕' : '💬';
-    });
+    const setChatOpen = (open: boolean): void => {
+      chatOpen = open;
+      chatOverlay.classList.toggle('chat-overlay--open', open);
+      chatFab.classList.toggle('chat-fab--open', open);
+      chatFab.textContent = open ? '✕' : '💬';
+    };
+    chatFab.addEventListener('click', () => setChatOpen(!chatOpen));
     document.body.appendChild(chatOverlay);
     document.body.appendChild(chatFab);
+
+    // Mount mobile tab bar. Always present; CSS hides it on desktop.
+    // On mobile, the Chat tab reuses the existing chat overlay in a
+    // fullscreen variant driven by `body.mobile-mode[data-mobile-tab="chat"]`.
+    const mobileTabs = createMobileTabBar(
+      appShell,
+      () => setChatOpen(true),
+      () => setChatOpen(false),
+    );
+    document.body.appendChild(mobileTabs.el);
+
+    // When any tab is activated we ask MapLibre to recompute canvas size
+    // after the transition (previously-hidden containers have zero size,
+    // which makes the map render blank until next interaction).
+    const observer = new MutationObserver(() => {
+      if (appShell.dataset.mobileTab === 'map') {
+        setTimeout(() => mapShell.resize(), 50);
+      }
+    });
+    observer.observe(appShell, { attributes: true, attributeFilter: ['data-mobile-tab'] });
+
+    // React to viewport resize — toggle mobile mode class, and when leaving
+    // mobile we reset chat state to avoid the overlay staying stuck open.
+    window.addEventListener('resize', () => {
+      const wasMobile = document.body.classList.contains('mobile-mode');
+      syncMobileModeClass();
+      const nowMobile = isMobileViewport();
+      if (wasMobile && !nowMobile) {
+        // Collapse chat when user drags from mobile → desktop width
+        setChatOpen(false);
+      }
+    });
 
     // (Footer author card moved to global header)
 
@@ -243,8 +284,8 @@ export async function initApp(): Promise<void> {
     ctx.panels.set(topDiseasesPanel.id, topDiseasesPanel);
     ctx.panels.set(chatPanel.id,        chatPanel);
 
-    // 6. Mount map layer controls (top-left overlay on the map)
-    new MapLayerControls(mapContainer);
+    // 6. Map layer controls removed — all layers always on with their
+    //    default visibility. Keeps the map uncluttered and mobile-friendly.
 
     // 7. Create map popup (hidden until a marker is clicked)
     const popup = new MapPopup(mapContainer);
@@ -253,21 +294,35 @@ export async function initApp(): Promise<void> {
     const UNLOCATED_PROVINCES = new Set(['Toàn quốc', 'phía Nam', 'ĐBSCL']);
     on('outbreak-selected', (data) => {
       const item = data as DiseaseOutbreakItem;
-      const isUnlocated = UNLOCATED_PROVINCES.has(item.province ?? '') || !item.province;
-      if (isUnlocated) {
-        // Zoom out to full Vietnam view for nationwide outbreaks
-        mapShell.flyTo([108.0, 16.0], 5);
-      } else if (item.lat != null && item.lng != null) {
-        mapShell.flyTo([item.lng, item.lat], 8);
-      }
-      const cx = mapContainer.clientWidth  / 2;
-      const cy = mapContainer.clientHeight / 2;
-      popup.show(item, cx, cy);
+
+      // On mobile, list clicks must switch the active view to the map
+      // before flying; otherwise the user sees nothing. Defer the actual
+      // flyTo until after the tab switch so MapLibre recalculates its
+      // canvas dimensions (it was display:none a moment ago).
+      const needTabSwitch = isMobileViewport() && mobileTabs.getActive() !== 'map';
+      if (needTabSwitch) mobileTabs.setActive('map');
+
+      const runFly = () => {
+        const isUnlocated = UNLOCATED_PROVINCES.has(item.province ?? '') || !item.province;
+        if (isUnlocated) {
+          mapShell.flyTo([108.0, 16.0], 5);
+        } else if (item.lat != null && item.lng != null) {
+          mapShell.flyTo([item.lng, item.lat], 8);
+        }
+        mapShell.resize();
+        const cx = mapContainer.clientWidth  / 2;
+        const cy = mapContainer.clientHeight / 2;
+        popup.show(item, cx, cy);
+      };
+
+      if (needTabSwitch) setTimeout(runFly, 60);
+      else runFly();
     });
 
-    // 9. Respond to window resize
+    // 9. Respond to window resize (ctx flag used by various components)
+    ctx.isMobile = isMobileViewport();
     window.addEventListener('resize', () => {
-      ctx.isMobile = window.innerWidth < 768;
+      ctx.isMobile = isMobileViewport();
     });
 
     // 10. Data fetch + refresh logic

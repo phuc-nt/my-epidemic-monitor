@@ -9,7 +9,6 @@ export { TopDiseasesPanel } from '@/components/top-diseases-panel';
 
 // Map overlays
 export { MapPopup } from '@/components/map-popup';
-export { MapLayerControls } from '@/components/map-layer-controls';
 
 // Map layers
 export {

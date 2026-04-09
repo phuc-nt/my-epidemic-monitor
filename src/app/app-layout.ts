@@ -15,6 +15,7 @@ import { h } from '@/utils/dom-utils';
  */
 export interface AppLayout {
   appHeader: HTMLElement;
+  appShell: HTMLElement;
   mapContainer: HTMLElement;
   panelsGrid: HTMLElement;
 }
@@ -27,10 +28,10 @@ export function createLayout(): AppLayout {
   const mapContainer = h('div', { id: 'map', className: 'map-container' });
   const panelsGrid   = h('div', { className: 'panels-grid' });
 
-  const shell = h('div', { className: 'app-shell' }, mapContainer, panelsGrid);
-  const root  = h('div', { className: 'app-root' }, appHeader, shell);
+  const appShell = h('div', { className: 'app-shell' }, mapContainer, panelsGrid);
+  const root     = h('div', { className: 'app-root' }, appHeader, appShell);
 
   app.appendChild(root);
 
-  return { appHeader, mapContainer, panelsGrid };
+  return { appHeader, appShell, mapContainer, panelsGrid };
 }

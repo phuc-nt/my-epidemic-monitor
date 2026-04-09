@@ -80,6 +80,13 @@ export class MapShell {
     this.map.flyTo({ center, zoom: zoom ?? this.map.getZoom() });
   }
 
+  /** Tell MapLibre to recompute canvas size — needed after the map
+   *  container changes dimensions (e.g., mobile tab switch from hidden
+   *  back to visible). Safe to call repeatedly. */
+  resize(): void {
+    this.map.resize();
+  }
+
   /** Expose the underlying MapLibre map for advanced use. */
   getMap(): maplibregl.Map {
     return this.map;

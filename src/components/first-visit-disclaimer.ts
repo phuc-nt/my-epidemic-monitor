@@ -37,10 +37,20 @@ function recordAck(): void {
   }
 }
 
-/** Build + mount the modal. Returns a promise that resolves when acknowledged. */
-function showModal(): Promise<void> {
+/**
+ * Build + mount the modal.
+ *
+ * @param opts.asReview  when true, the modal is being shown for re-review
+ *                       (via the header ⓘ button), not as a first-visit
+ *                       gate. In review mode the ack button says "Đóng"
+ *                       and we skip writing the ack timestamp so the
+ *                       30-day cycle is not reset.
+ */
+function showModal(opts: { asReview?: boolean } = {}): Promise<void> {
+  const asReview = opts.asReview === true;
   return new Promise((resolve) => {
-    const ackBtn = h('button', { className: 'em-disclaimer-ack-btn' }, 'Tôi đã hiểu, tiếp tục');
+    const ackBtn = h('button', { className: 'em-disclaimer-ack-btn' },
+      asReview ? 'Đóng' : 'Tôi đã hiểu, tiếp tục');
 
     const modal = h('div', { className: 'em-disclaimer-modal', role: 'dialog', 'aria-modal': 'true' },
       h('div', { className: 'em-disclaimer-card' },
@@ -79,10 +89,20 @@ function showModal(): Promise<void> {
     );
 
     ackBtn.addEventListener('click', () => {
-      recordAck();
+      if (!asReview) recordAck();
       modal.remove();
       resolve();
     });
+
+    // Click on backdrop closes review mode (first-visit stays modal)
+    if (asReview) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+          resolve();
+        }
+      });
+    }
 
     document.body.appendChild(modal);
     // Focus the ack button so Enter/Space can dismiss it
@@ -97,4 +117,12 @@ function showModal(): Promise<void> {
 export function ensureDisclaimerAcknowledged(): Promise<void> {
   if (hasValidAck()) return Promise.resolve();
   return showModal();
+}
+
+/**
+ * Force-show the disclaimer modal (for the header ⓘ button). Does not
+ * record acknowledgment — used for re-review only.
+ */
+export function showDisclaimerReview(): Promise<void> {
+  return showModal({ asReview: true });
 }

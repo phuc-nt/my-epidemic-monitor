@@ -56,90 +56,77 @@ html, body {
   overflow: hidden;
 }
 
-/* Global header — brand + disclaimer + author in a single bar spanning
-   the full width. Light theme. Replaces the map-overlay brand pill, the
-   dashboard disclaimer strip, and the map-container author footer. */
+/* Global header — single-row brand + condensed disclaimer + author.
+   Light theme. Full disclaimer lives in the ⓘ modal on desktop too. */
 .app-header {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 18px;
-  padding: 10px 18px;
+  gap: 14px;
+  padding: 6px 16px;
   background: #ffffff;
   color: #0f172a;
   border-bottom: 1px solid #e2e8f0;
   flex-shrink: 0;
-  min-height: 64px;
+  min-height: 48px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   z-index: 20;
 }
 
-.app-header-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.app-header-logo { width: 44px; height: 44px; flex-shrink: 0; }
-.app-header-title-group { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.app-header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.app-header-logo { width: 30px; height: 30px; flex-shrink: 0; }
+.app-header-title-group { display: flex; align-items: center; min-width: 0; }
 .app-header-title {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
   letter-spacing: 0.2px;
+  white-space: nowrap;
 }
-.app-header-tagline {
-  font-size: 11px;
-  color: #64748b;
-  margin-top: 3px;
+
+.app-header-disclaimer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #78350f;
+  min-width: 0;
+  overflow: hidden;
+}
+.app-header-disclaimer-icon {
+  flex-shrink: 0;
+  font-size: 13px;
+  line-height: 1;
+}
+.app-header-disclaimer-main {
+  min-width: 0;
+  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.app-header-tagline strong { color: #b45309; font-weight: 600; }
-
-.app-header-disclaimer {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 14px;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
-  border-radius: 10px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #78350f;
-  min-width: 0;
-}
-.app-header-disclaimer-icon {
-  flex-shrink: 0;
-  font-size: 16px;
-  line-height: 1.3;
-  margin-top: 1px;
-}
-.app-header-disclaimer-body {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
 .app-header-disclaimer-main strong { color: #92400e; font-weight: 700; }
-.app-header-disclaimer-main a {
-  color: #b45309;
-  text-decoration: underline;
-  font-weight: 600;
-}
-.app-header-disclaimer-main a:hover { color: #78350f; }
 .app-header-disclaimer-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
+  flex-shrink: 0;
 }
 .app-header-disclaimer-terms,
 .app-header-disclaimer-report {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  gap: 3px;
+  padding: 3px 9px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
   transition: background 0.12s, color 0.12s;
 }
 .app-header-disclaimer-terms {
@@ -164,37 +151,43 @@ html, body {
 .app-header-author {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 5px 12px 5px 5px;
+  gap: 8px;
+  padding: 3px 10px 3px 3px;
   background: #f1f5f9;
   border-radius: 999px;
   border: 1px solid #e2e8f0;
   flex-shrink: 0;
 }
 .app-header-author-avatar {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(59,130,246,0.35);
+  box-shadow: 0 2px 4px rgba(59,130,246,0.3);
 }
-.app-header-author-info { display: flex; flex-direction: column; line-height: 1.2; }
-.app-header-author-name { font-size: 12px; font-weight: 700; color: #0f172a; letter-spacing: 0.2px; }
-.app-header-author-links { display: flex; gap: 4px; margin-top: 3px; }
+.app-header-author-info { display: flex; align-items: center; gap: 8px; }
+.app-header-author-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.app-header-author-links { display: flex; gap: 3px; }
 .app-header-author-links a {
-  width: 22px;
-  height: 18px;
-  border-radius: 4px;
+  width: 20px;
+  height: 16px;
+  border-radius: 3px;
   background: #e2e8f0;
   color: #475569;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   text-decoration: none;
   display: flex;
@@ -207,37 +200,70 @@ html, body {
   color: #fff;
 }
 
-@media (max-width: 900px) {
-  .app-header {
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    gap: 10px 12px;
-    padding: 10px 14px;
-  }
-  .app-header-disclaimer {
-    grid-column: 1 / -1;
-    order: 3;
-  }
-  .app-header-author { grid-column: 2; }
-  .app-header-tagline { font-size: 10px; }
+/* ⓘ info button — hidden on desktop (disclaimer card is inline) */
+.app-header-info-btn {
+  display: none;
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.12s, transform 0.12s;
 }
-@media (max-width: 520px) {
-  .app-header-logo { width: 34px; height: 34px; }
-  .app-header-title { font-size: 15px; }
-  .app-header-tagline { font-size: 10px; white-space: normal; }
-  .app-header-disclaimer { font-size: 11px; padding: 8px 12px; }
+.app-header-info-btn:hover { background: #fde68a; transform: scale(1.05); }
+.app-header-info-btn:active { transform: scale(0.96); }
+
+@media (max-width: 1100px) {
+  /* Disclaimer card shrinks first — hide action buttons when space is tight */
+  .app-header-disclaimer-actions { display: none; }
+  .app-header-info-btn { display: inline-flex; }
+}
+@media (max-width: 900px) {
+  /* Collapse disclaimer entirely; ⓘ opens full text */
+  .app-header-disclaimer { display: none; }
+  .app-header {
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+  }
+}
+@media (max-width: 640px) {
   .app-header-author-name { display: none; }
+  .app-header-author-links { display: none; }
 }
 
 /* ── App shell layout ─────────────────────────────────────── */
 
 .app-shell {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Info panel gets more weight than map — users read text more than they
+     pan the map. Map clamps to a minimum so it stays usable; panels get
+     a generous minimum so long province names + publisher tags don't wrap
+     into 5-line mess. Weights: map ~42%, panels ~58% at wide widths. */
+  grid-template-columns: minmax(360px, 1fr) minmax(540px, 1.35fr);
   width: 100%;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+@media (max-width: 1400px) {
+  /* Narrower desktops: push even more weight to panels so outbreak cards
+     stay readable instead of shrinking into two cramped columns. */
+  .app-shell {
+    grid-template-columns: minmax(320px, 0.85fr) minmax(520px, 1.5fr);
+  }
+}
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: minmax(280px, 0.7fr) minmax(480px, 1.6fr);
+  }
 }
 
 /* ── Map container ────────────────────────────────────────── */
@@ -503,7 +529,10 @@ html, body {
 .outbreak-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .outbreak-col-header { font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 2px 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .outbreak-col--unlocated .outbreak-row { opacity: 0.85; }
-@media (max-width: 900px) { .outbreak-2col-grid { grid-template-columns: 1fr; } }
+/* Collapse to 1 column well before 900px — even at 1300px viewport the
+   panel side is ~700px which is too tight for 2 columns of outbreak cards
+   with long province names + publisher tags. */
+@media (max-width: 1300px) { .outbreak-2col-grid { grid-template-columns: 1fr; } }
 .outbreak-show-more {
   display: block; width: 100%; padding: 6px; margin-top: 4px;
   border: 1px dashed var(--border); border-radius: var(--radius);
@@ -888,6 +917,8 @@ html, body {
   border-radius: var(--radius);
   flex: 1;
   min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .summary-pill--alert   { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.2); }
 .summary-pill--warning { background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.2); }
@@ -907,6 +938,7 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 .summary-total {
   font-size: 11px;
@@ -923,13 +955,174 @@ html, body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-/* ── Responsive: mobile stacked ───────────────────────────── */
+/* ============================================================
+   Mobile tab bar — bottom navigation shown only under 768px
+   ============================================================ */
+
+.mobile-tab-bar {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  box-shadow: 0 -2px 12px rgba(15, 23, 42, 0.08);
+  z-index: 900;
+}
+.mobile-tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 8px 4px;
+  min-height: 44px;
+  transition: color 0.12s, background 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-tab-btn-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.mobile-tab-btn-label {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+.mobile-tab-btn--active {
+  color: var(--accent);
+  background: rgba(37, 99, 235, 0.06);
+}
+.mobile-tab-btn:active {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+/* ============================================================
+   Mobile mode (<768px) — single-view layout driven by tab bar
+   ============================================================ */
 
 @media (max-width: 767px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: 40% 60%;
+  body.mobile-mode .mobile-tab-bar {
+    display: flex;
   }
-  .map-container { height: 100%; }
-  .panels-grid { height: 100%; }
+
+  /* Compact header: hide disclaimer card + author card on mobile.
+     The ⓘ button in the brand opens the full disclaimer in a modal. */
+  body.mobile-mode .app-header {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto;
+    min-height: 52px;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  body.mobile-mode .app-header-disclaimer,
+  body.mobile-mode .app-header-author {
+    display: none;
+  }
+  body.mobile-mode .app-header-brand {
+    width: 100%;
+    gap: 10px;
+  }
+  body.mobile-mode .app-header-info-btn {
+    display: inline-flex;
+  }
+  body.mobile-mode .app-header-logo {
+    width: 32px;
+    height: 32px;
+  }
+  body.mobile-mode .app-header-title {
+    font-size: 15px;
+  }
+  body.mobile-mode .app-header-tagline {
+    font-size: 10px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+
+  /* Shell becomes a single-view container — tab attribute picks which
+     child is visible. Full viewport minus header minus tab bar. */
+  body.mobile-mode .app-shell {
+    display: block;
+    position: relative;
+    height: 100%;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+  body.mobile-mode .map-container,
+  body.mobile-mode .panels-grid {
+    position: absolute;
+    inset: 0 0 calc(56px + env(safe-area-inset-bottom, 0px)) 0;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    box-shadow: none;
+  }
+
+  /* Show only the active tab's view */
+  body.mobile-mode .app-shell[data-mobile-tab="map"]  .panels-grid { display: none; }
+  body.mobile-mode .app-shell[data-mobile-tab="list"] .map-container { display: none; }
+  body.mobile-mode .app-shell[data-mobile-tab="chat"] .map-container,
+  body.mobile-mode .app-shell[data-mobile-tab="chat"] .panels-grid { display: none; }
+
+  /* Chat tab: expand the floating overlay into a fullscreen view */
+  body.mobile-mode[data-mobile-tab="chat"] .chat-overlay {
+    position: fixed;
+    top: 52px;                   /* below compact header */
+    left: 0;
+    right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  /* FAB has no place on mobile — the tab bar replaces it */
+  body.mobile-mode .chat-fab {
+    display: none;
+  }
+
+  /* Kill panel resize handle on touch — not usable with fingers */
+  body.mobile-mode .panel {
+    resize: none;
+  }
+
+  /* Tighter alert summary pills so they fit on narrow screens */
+  body.mobile-mode .summary-pill {
+    padding: 4px 6px;
+  }
+  body.mobile-mode .summary-pill-count { font-size: 17px; }
+  body.mobile-mode .summary-pill-label { font-size: 8px; }
+  body.mobile-mode .summary-total { font-size: 10px; }
+
+  /* Panel tab buttons must hit the 44px touch target minimum */
+  body.mobile-mode .panel-tab-btn {
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+
+  /* Larger tap area for timeline day buttons */
+  body.mobile-mode .timeline-day-btn {
+    min-height: 44px;
+  }
+}
+
+/* Very narrow screens (<380px) — tighten everything further */
+@media (max-width: 379px) {
+  body.mobile-mode .app-header-tagline { display: none; }
+  body.mobile-mode .app-header-title { font-size: 14px; }
+  body.mobile-mode .mobile-tab-btn-label { font-size: 9px; }
 }
