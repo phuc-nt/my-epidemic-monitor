@@ -5,7 +5,7 @@
 <h1 align="center">Epidemic Monitor</h1>
 
 <p align="center">
-  <em>Phát hiện sớm điểm nóng dịch bệnh ở Việt Nam — từ báo chí, YouTube và mạng xã hội.</em>
+  <em>Tổng hợp tin dịch bệnh ở Việt Nam từ báo chí — công cụ tham khảo của cộng đồng, không thay thế CDC.</em>
 </p>
 
 <p align="center">
@@ -19,7 +19,9 @@
 
 Mỗi năm, phụ huynh có con nhỏ ở Việt Nam đều lo cùng một thứ: **mùa dịch lại tới**. Sốt xuất huyết tháng 7, tay chân miệng tháng 9, sởi/cúm/ho gà rải rác cả năm. Báo cáo Bộ Y tế chậm vài ngày tới vài tuần — trong khi đó báo chí và mạng xã hội đã viết từ trước.
 
-Epidemic Monitor đọc giùm bạn. Mỗi 6 giờ, AI quét báo VN + YouTube + Facebook, lọc ra tin dịch thật ở Việt Nam, đưa lên một bản đồ duy nhất. Mở là dùng, không đăng ký, miễn phí.
+Epidemic Monitor đọc giùm bạn. Mỗi 6 giờ, AI quét các báo Việt Nam tin cậy, lọc ra tin có ca/ổ dịch cụ thể ở Việt Nam, đưa lên một bản đồ duy nhất với attribution rõ ràng cho từng nguồn báo. Mở là dùng, không đăng ký, miễn phí, không quảng cáo, không tracking.
+
+> ⚠️ Đây là **công cụ tham khảo**, không phải công bố chính thức. Luôn đối chiếu với [Bộ Y tế](https://moh.gov.vn) và CDC tỉnh trước khi ra quyết định quan trọng.
 
 ## Quick start
 

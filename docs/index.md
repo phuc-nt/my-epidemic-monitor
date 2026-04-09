@@ -2,7 +2,7 @@
 layout: default
 title: Trang chủ
 nav_order: 1
-description: "Epidemic Monitor — phát hiện sớm điểm nóng dịch bệnh ở Việt Nam từ tin tức và mạng xã hội."
+description: "Epidemic Monitor — công cụ tham khảo tổng hợp tin dịch bệnh Việt Nam từ báo chí. Không phải nguồn chính thống."
 permalink: /
 ---
 
@@ -13,7 +13,7 @@ permalink: /
 # Epidemic Monitor
 {: .fs-9 }
 
-Phát hiện sớm điểm nóng dịch bệnh ở Việt Nam — từ báo chí, YouTube và mạng xã hội, gom lại thành một bản đồ duy nhất.
+Tổng hợp tin dịch bệnh ở Việt Nam từ báo chí — gom lại thành một bản đồ duy nhất, có dẫn nguồn rõ ràng cho từng tin. **Công cụ tham khảo cộng đồng, không thay thế CDC.**
 {: .fs-6 .fw-300 }
 
 [Mở app]({{ "https://epidemic-monitor.pages.dev" }}){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
@@ -27,27 +27,26 @@ Mỗi năm, phụ huynh có con nhỏ ở Việt Nam đều phải đối mặt 
 
 Báo cáo của Bộ Y tế và CDC tỉnh là nguồn chính thống — nhưng thường chậm vài ngày tới vài tuần. Trong khoảng thời gian đó, **báo chí và mạng xã hội đã viết về ổ dịch từ lâu rồi.**
 
-Epidemic Monitor đọc những nguồn đó giùm bạn. Mỗi 6 giờ, hệ thống quét báo chí Việt Nam, YouTube và Facebook bằng các từ khoá dịch bệnh, dùng AI để trích xuất thông tin có cấu trúc (bệnh gì, ở tỉnh/huyện nào, bao nhiêu ca, mức cảnh báo), và đưa lên một bản đồ Việt Nam duy nhất.
+Epidemic Monitor đọc giùm bạn. Mỗi 6 giờ, hệ thống quét các báo Việt Nam tin cậy bằng các từ khoá dịch bệnh, dùng AI để trích xuất thông tin có cấu trúc (bệnh gì, ở tỉnh/huyện nào, số ca được báo chí đề cập), và đưa lên một bản đồ Việt Nam duy nhất với attribution rõ ràng cho từng nguồn báo.
 
 ---
 
 ### Bạn thấy được gì
 
-- 🗺 **Bản đồ Việt Nam** với marker theo tỉnh/huyện cho từng ổ dịch đang hoạt động
-- 📰 **Dòng tin tức** mới nhất từ các báo lớn (VnExpress, Tuổi Trẻ, Thanh Niên, Dân Trí…)
-- 📊 **Thống kê tổng quan**: số ổ dịch, số tỉnh ảnh hưởng, top bệnh đang nóng
-- 🤖 **AI Chat** để hỏi cụ thể: *"Hà Nội tuần này có dịch gì?"*, *"Tay chân miệng đang lan ở những tỉnh nào?"*
-- 🌡 **Cảnh báo khí hậu** — nhiệt độ + độ ẩm tương quan với mùa muỗi và bệnh hô hấp
+- 🗺 **Bản đồ Việt Nam** với marker theo tỉnh/huyện cho từng tin báo chí đưa
+- 📰 **Danh sách tin** mới nhất từ các báo lớn (VnExpress, Tuổi Trẻ, Thanh Niên, Dân Trí, Sức khỏe Đời sống…) + các báo địa phương + HCDC
+- 📊 **Bệnh được nhắc nhiều** — top diseases theo số tin báo chí đưa
+- 🤖 **Trợ lý AI** để hỏi cụ thể: *"Hà Nội tuần này có tin gì?"*, *"Tay chân miệng được báo chí đưa ở những tỉnh nào?"*
 
-Tất cả miễn phí, mở public, không cần đăng ký.
+Tất cả miễn phí, mở public, không cần đăng ký, không quảng cáo, không tracking.
 
 ---
 
 ### Hệ thống tóm gọn trong 3 dòng
 
-1. Mỗi 6 giờ, hệ thống quét các nguồn tin tiếng Việt tin cậy bằng 20 từ khoá dịch bệnh.
-2. AI lọc bài, trích xuất thông tin có cấu trúc, và filter chỉ giữ ổ dịch ở Việt Nam.
-3. Bạn mở web — thấy bản đồ và danh sách ngay lập tức, không cần đăng ký.
+1. Mỗi 6 giờ, hệ thống quét các báo Việt Nam tin cậy bằng 20 từ khoá dịch bệnh.
+2. AI lọc bài, trích xuất thông tin có cấu trúc, và chỉ giữ tin về Việt Nam (loại bài giáo dục, PR, tin nước ngoài).
+3. Bạn mở web — thấy bản đồ + danh sách ngay lập tức, mỗi tin có link đến bài báo gốc để xác minh.
 
 Xem [Tính năng chính]({{ site.baseurl }}/core-features.html) để biết bạn có thể làm gì với dữ liệu này.
 

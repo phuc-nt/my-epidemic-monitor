@@ -47,15 +47,15 @@ Vấn đề là: **không ai có thời gian đọc hết các nguồn này mỗ
 Đó là toàn bộ ý tưởng của Epidemic Monitor.
 
 ```
-20+ từ khoá dịch bệnh tiếng Việt
+20 từ khoá dịch bệnh tiếng Việt
         ↓
-Quét báo + YouTube + Facebook (mỗi 6h)
+Quét các báo Việt Nam tin cậy (mỗi 6h)
         ↓
 AI lọc: có phải tin dịch thật không? ở Việt Nam không?
         ↓
-Trích xuất: bệnh gì, tỉnh nào, bao nhiêu ca, cảnh báo cấp mấy
+Trích xuất: bệnh gì, tỉnh nào, số ca được báo chí đề cập
         ↓
-Bản đồ + danh sách ổ dịch + dòng tin
+Bản đồ + danh sách tin với link nguồn
 ```
 
 Toàn bộ chạy tự động. Bạn chỉ cần mở app, nhìn bản đồ, biết ngay tuần này có gì cần lo.
@@ -78,13 +78,16 @@ Toàn bộ chạy tự động. Bạn chỉ cần mở app, nhìn bản đồ, b
 
 Câu hỏi đúng. Câu trả lời ngắn: **tin một mình không đáng tin, nhưng tổng hợp nhiều tin từ nguồn uy tín thì đáng.**
 
-Hệ thống có 3 lớp lọc:
+Hệ thống có nhiều lớp lọc:
 
-1. **Lớp nguồn** — chỉ đọc 12 báo lớn đã được kiểm chứng (suckhoedoisong.vn, vnexpress.net, tuoitre.vn, thanhnien.vn, dantri.com.vn, laodong.vn, vietnamnet.vn, nld.com.vn, kenh14.vn, vtcnews.vn, nhandan.vn). Facebook/YouTube qua Google SERP và YouTube Data API có rank.
-2. **Lớp AI** — MiniMax M2.7 đọc bài, hỏi: *"Đây có phải tin dịch thật không? Có phải ở Việt Nam không?"*. Nếu không chắc → loại.
-3. **Lớp dedup + confidence** — bài trùng URL bị loại. Bài có độ tin cậy < 0.5 bị loại.
+1. **Lớp nguồn** — chỉ đọc các báo Việt Nam tin cậy (suckhoedoisong.vn, vnexpress.net, tuoitre.vn, thanhnien.vn, dantri.com.vn, laodong.vn, vietnamnet.vn, nld.com.vn, kenh14.vn, vtcnews.vn, nhandan.vn) cùng các nguồn chính thống (HCDC, Cục YTDP, Bộ Y tế) và các báo địa phương (Hải Phòng, Đà Nẵng, Nghệ An, Khánh Hòa, Quảng Ninh).
+2. **Lớp qualifier** — bài phải chứa các phrase như "ca bệnh", "ca tử vong", "ghi nhận", "bùng phát" trong title hoặc đoạn đầu. Loại bài giáo dục sức khỏe / PR / guide phòng bệnh.
+3. **Lớp AI** — MiniMax M2.7 đọc bài, hỏi: *"Đây có phải tin dịch thật không? Có phải ở Việt Nam không?"*. Nếu không chắc → loại.
+4. **Lớp VN-only guard** — title chứa tên quốc gia khác (Bangladesh, China, Florida...) → loại. Country field phải là Vietnam hoặc null.
+5. **Lớp dedup** — bài trùng URL bị loại.
+6. **Lớp per-capita** — alert level được normalize theo số ca / 1 triệu dân, không phải absolute count → tỉnh dày báo chí không bị inflate.
 
-Kết quả: trong cùng một cycle, nếu bạn thấy 5 báo cùng đưa tin về một ổ tay chân miệng ở Đồng Nai, **rất có thể đó là tin thật**.
+Kết quả: nếu bạn thấy 5 báo cùng đưa tin về một sự kiện dịch bệnh ở Đồng Nai, **rất có thể đó là tin thật**. Nhưng vẫn nên đối chiếu với CDC tỉnh trước khi ra quyết định.
 
 ---
 
