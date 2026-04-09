@@ -239,71 +239,64 @@ export function getLastNDays(n = 7): string[] {
 }
 
 /**
- * Query D1 for hotspots across the last 7 days in parallel.
- * Only web-sourced items (WHITELISTED_SOURCE_TYPES) are surfaced to the UI.
- * YouTube/Facebook items are still ingested into D1 for reference + future
- * improvements, but hidden from the UI until their signal is trusted enough.
+ * Query D1 for recent web-sourced outbreak hotspots.
+ *
+ * Uses a 14-day rolling window on `published_at` so the UI stays populated
+ * even when Vietnamese newspapers lag (they routinely publish today's news
+ * with published_at = yesterday or earlier). Single query, grouped by
+ * (disease, province, district, published day).
+ *
+ * Only web-sourced items are surfaced to the UI. YouTube/Facebook items
+ * are still ingested into D1 for reference but hidden here.
  */
 const WHITELISTED_SOURCE_TYPES = ['web'];
+const WINDOW_DAYS = 14;
 
 export async function fetchOutbreaksFromD1(db: D1Database): Promise<OutbreakItem[]> {
-  const days = getLastNDays(7);
-  // Aggregate outbreak_items directly so we can filter by source_type before
-  // the hotspots VIEW groups across all sources. Keeps pure-web hotspots only.
-  const results = await Promise.allSettled(
-    days.map(day =>
-      db.prepare(`
-        SELECT
-          disease,
-          province,
-          district,
-          ? AS day,
-          CASE MAX(CASE alert_level WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END)
-            WHEN 3 THEN 'alert' WHEN 2 THEN 'warning' ELSE 'watch'
-          END AS peak_alert,
-          MAX(cases) AS peak_cases,
-          COUNT(*) AS article_count,
-          GROUP_CONCAT(DISTINCT source_type) AS source_types,
-          GROUP_CONCAT(url, '|') AS source_urls
-        FROM outbreak_items
-        WHERE source_type IN (${WHITELISTED_SOURCE_TYPES.map(() => '?').join(',')})
-          AND strftime('%Y-%m-%d', published_at/1000, 'unixepoch') = ?
-          AND disease NOT IN ('african-swine-fever', 'avian-influenza')
-          -- VN-only guard (layer 1): LLM-extracted country must be Vietnam or null.
-          AND (country IS NULL OR LOWER(country) IN ('vietnam', 'viet nam', 'việt nam', 'vn'))
-          -- VN-only guard (layer 2): reject titles that obviously name a foreign
-          -- country. Catches the pattern where a VN newspaper reports on a
-          -- foreign outbreak and M2.7 fails to tag country correctly
-          -- (e.g., Thanh Niên's Bangladesh measles story).
-          AND LOWER(title) NOT GLOB '*bangladesh*'
-          AND LOWER(title) NOT GLOB '*pakistan*'
-          AND LOWER(title) NOT GLOB '*argentina*'
-          AND LOWER(title) NOT GLOB '*florida*'
-          AND LOWER(title) NOT GLOB '*texas*'
-          AND LOWER(title) NOT GLOB '*nigeria*'
-          AND LOWER(title) NOT GLOB '*philippines*'
-          AND LOWER(title) NOT GLOB '*indonesia*'
-          AND LOWER(title) NOT GLOB '*thái lan*'
-          AND LOWER(title) NOT GLOB '*singapore*'
-          AND LOWER(title) NOT GLOB '*malaysia*'
-          AND LOWER(title) NOT GLOB '*cambodia*'
-          AND LOWER(title) NOT GLOB '*trung quốc*'
-          AND LOWER(title) NOT GLOB '*china*'
-          AND LOWER(title) NOT GLOB '*châu phi*'
-          AND LOWER(title) NOT GLOB '*africa*'
-          AND LOWER(title) NOT GLOB '*mỹ *'
-          AND LOWER(title) NOT GLOB '* usa *'
-        GROUP BY disease, province, IFNULL(district, '')
-        ORDER BY MAX(CASE alert_level WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END) DESC
-      `).bind(day, ...WHITELISTED_SOURCE_TYPES, day).all<HotspotRow>()
-    )
-  );
+  const result = await db.prepare(`
+    SELECT
+      disease,
+      province,
+      district,
+      strftime('%Y-%m-%d', published_at/1000, 'unixepoch') AS day,
+      CASE MAX(CASE alert_level WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END)
+        WHEN 3 THEN 'alert' WHEN 2 THEN 'warning' ELSE 'watch'
+      END AS peak_alert,
+      MAX(cases) AS peak_cases,
+      COUNT(*) AS article_count,
+      GROUP_CONCAT(DISTINCT source_type) AS source_types,
+      GROUP_CONCAT(url, '|') AS source_urls
+    FROM outbreak_items
+    WHERE source_type IN (${WHITELISTED_SOURCE_TYPES.map(() => '?').join(',')})
+      AND published_at > (strftime('%s','now') - ? * 86400) * 1000
+      AND disease NOT IN ('african-swine-fever', 'avian-influenza')
+      -- VN-only guard (layer 1): LLM-extracted country must be Vietnam or null.
+      AND (country IS NULL OR LOWER(country) IN ('vietnam', 'viet nam', 'việt nam', 'vn'))
+      -- VN-only guard (layer 2): reject titles that obviously name a foreign
+      -- country. Catches VN newspapers reporting on foreign outbreaks where
+      -- M2.7 failed to tag country (e.g. Thanh Niên Bangladesh measles).
+      AND LOWER(title) NOT GLOB '*bangladesh*'
+      AND LOWER(title) NOT GLOB '*pakistan*'
+      AND LOWER(title) NOT GLOB '*argentina*'
+      AND LOWER(title) NOT GLOB '*florida*'
+      AND LOWER(title) NOT GLOB '*texas*'
+      AND LOWER(title) NOT GLOB '*nigeria*'
+      AND LOWER(title) NOT GLOB '*philippines*'
+      AND LOWER(title) NOT GLOB '*indonesia*'
+      AND LOWER(title) NOT GLOB '*thái lan*'
+      AND LOWER(title) NOT GLOB '*singapore*'
+      AND LOWER(title) NOT GLOB '*malaysia*'
+      AND LOWER(title) NOT GLOB '*cambodia*'
+      AND LOWER(title) NOT GLOB '*trung quốc*'
+      AND LOWER(title) NOT GLOB '*china*'
+      AND LOWER(title) NOT GLOB '*châu phi*'
+      AND LOWER(title) NOT GLOB '*africa*'
+      AND LOWER(title) NOT GLOB '*mỹ *'
+      AND LOWER(title) NOT GLOB '* usa *'
+    GROUP BY disease, province, IFNULL(district, ''), day
+    ORDER BY day DESC,
+      MAX(CASE alert_level WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END) DESC
+  `).bind(...WHITELISTED_SOURCE_TYPES, WINDOW_DAYS).all<HotspotRow>();
 
-  const all: OutbreakItem[] = [];
-  for (const r of results) {
-    if (r.status === 'fulfilled') {
-      all.push(...mapHotspots(r.value.results ?? []));
-    }
-  }
-  return all.sort((a, b) => b.publishedAt - a.publishedAt);
+  return mapHotspots(result.results ?? []).sort((a, b) => b.publishedAt - a.publishedAt);
 }

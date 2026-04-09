@@ -193,7 +193,7 @@ export async function initApp(): Promise<void> {
       summaryStrip.appendChild(pill(warnCnt,  'Vài tin',    'summary-pill--warning'));
       summaryStrip.appendChild(pill(watchCnt, 'Ít tin',     'summary-pill--watch'));
       summaryStrip.appendChild(
-        h('div', { className: 'summary-total' }, `${items.length} tin trong 7 ngày qua`),
+        h('div', { className: 'summary-total' }, `${items.length} tin gần đây`),
       );
     }
 
