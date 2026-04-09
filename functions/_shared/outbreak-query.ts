@@ -277,7 +277,10 @@ export async function fetchOutbreaksFromD1(db: D1Database): Promise<OutbreakItem
       disease,
       province,
       district,
-      strftime('%Y-%m-%d', published_at/1000, 'unixepoch') AS day,
+      -- Bucket by Vietnam local day (UTC+7) so an article whose URL says
+      -- 20260409 doesn't end up grouped under 2026-04-08 just because the
+      -- pipeline stored published_at as midnight VN time (= 17:00 UTC prev).
+      strftime('%Y-%m-%d', published_at/1000 + 25200, 'unixepoch') AS day,
       CASE MAX(CASE alert_level WHEN 'alert' THEN 3 WHEN 'warning' THEN 2 ELSE 1 END)
         WHEN 3 THEN 'alert' WHEN 2 THEN 'warning' ELSE 'watch'
       END AS peak_alert,
