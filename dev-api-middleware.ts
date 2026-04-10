@@ -42,7 +42,7 @@ function extractTag(xml: string, tag: string): string {
 function extractLink(block: string): string {
   // Handle both plain text and CDATA-wrapped links
   const lm = block.match(/<link>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/link>/s);
-  if (lm && lm[1].trim()) return lm[1].trim();
+  if (lm && lm[1].trim()) return lm[1].trim(); 
   const gm = block.match(/<guid[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/guid>/s);
   return gm ? gm[1].trim() : '';
 }
@@ -237,9 +237,12 @@ interface OutbreakItem {
   isOutbreakNews?: boolean;
 }
 
-const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || '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';
+// Secret MUST come from environment — never hardcode. If missing, LLM
+// extraction is skipped (the middleware returns articles without
+// enrichment, which is acceptable for local dev).
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY ?? '';
 
-const LLM_EXTRACTION_PROMPT = `Bạn là chuyên gia phân tích dữ liệu dịch bệnh. Extract thông tin từ bài báo y tế Việt Nam.
+const LLM_EXTRACTION_PROMPT = `Bạn là chuyên gia phân tích dữ liệu sức khoẻ cộng đồng. Extract thông tin từ bài báo y tế Việt Nam.
 Trả về JSON với các trường:
 - disease_vn: tên bệnh tiếng Việt
 - province: tên tỉnh/thành. null nếu không có
@@ -249,7 +252,7 @@ Trả về JSON với các trường:
 - deaths: số tử vong (int). null nếu không đề cập
 - severity: "outbreak" | "warning" | "watch"
 - date: ngày sự kiện (YYYY-MM-DD). null nếu không rõ
-- is_outbreak_news: true nếu tin dịch bệnh CỤ THỂ (có ca, có địa điểm), false nếu bài hướng dẫn sức khỏe chung
+- is_outbreak_news: true nếu tin sức khoẻ cộng đồng CỤ THỂ (có ca, có địa điểm), false nếu bài hướng dẫn sức khỏe chung
 - summary_vi: tóm tắt 1 câu
 Return JSON ONLY.`;
 

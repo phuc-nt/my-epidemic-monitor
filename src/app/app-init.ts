@@ -67,6 +67,7 @@ export async function initApp(): Promise<void> {
       h('img', { className: 'app-header-logo', src: '/logo.svg', alt: 'Epidemic Monitor' }),
       h('div', { className: 'app-header-title-group' },
         h('div', { className: 'app-header-title' }, 'Epidemic Monitor'),
+        h('div', { className: 'app-header-subtitle' }, 'Bản đồ cảnh báo nguy cơ sức khoẻ · Việt Nam'),
       ),
       headerInfoBtn,
     );
@@ -231,7 +232,7 @@ export async function initApp(): Promise<void> {
     const chatOverlay = h('div', { className: 'chat-overlay' }, chatPanel.el);
     const chatFab = h('button', {
       className: 'chat-fab',
-      title: 'Trợ lý AI — Hỏi đáp về dữ liệu dịch bệnh',
+      title: 'Trợ lý AI — Hỏi đáp về dữ liệu sức khoẻ cộng đồng',
     }, '💬');
     let chatOpen = false;
     const setChatOpen = (open: boolean): void => {

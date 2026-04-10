@@ -54,7 +54,7 @@ export class ChatPanel extends Panel {
     // Textarea — created via createElement to get typed HTMLTextAreaElement
     this._inputEl = document.createElement('textarea');
     this._inputEl.className = 'chat-input';
-    this._inputEl.placeholder = 'Hỏi về dữ liệu dịch bệnh...';
+    this._inputEl.placeholder = 'Hỏi về dữ liệu sức khoẻ cộng đồng...';
     this._inputEl.rows = 1;
 
     // Send button
@@ -89,7 +89,7 @@ export class ChatPanel extends Panel {
     });
 
     // Initial welcome message
-    this._addAssistantMessage('Xin chào! Tôi có thể giúp bạn phân tích dữ liệu dịch bệnh. Hãy đặt câu hỏi.');
+    this._addAssistantMessage('Xin chào! Tôi có thể giúp bạn phân tích dữ liệu sức khoẻ cộng đồng từ báo chí. Hãy đặt câu hỏi.');
   }
 
   // ---------------------------------------------------------------------------

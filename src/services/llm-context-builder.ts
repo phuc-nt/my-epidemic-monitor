@@ -59,11 +59,11 @@ export function buildSystemPrompt(): string {
 
   const outbreakLines = outbreaks.length
     ? outbreaks.map(formatOutbreak).join('\n')
-    : '- Báo chí Việt Nam không đưa tin nào về dịch bệnh trong 7 ngày qua.';
+    : '- Báo chí Việt Nam không đưa tin nào liên quan đến sức khoẻ cộng đồng trong 7 ngày qua.';
 
   const today = new Date().toISOString().slice(0, 10);
 
-  return `Bạn là trợ lý theo dõi tin tức dịch bệnh ở Việt Nam.
+  return `Bạn là trợ lý theo dõi tin tức sức khoẻ cộng đồng ở Việt Nam.
 
 QUAN TRỌNG: Bạn KHÔNG phải cơ quan y tế. Bạn chỉ tổng hợp lại những gì
 báo chí Việt Nam đã đưa tin. Mọi câu trả lời phải được phrasing dưới

@@ -2,14 +2,14 @@
 layout: default
 title: Vì sao
 nav_order: 2
-description: "Vì sao cần một hệ thống cảnh báo dịch bệnh từ tin tức + mạng xã hội ở Việt Nam."
+description: "Vì sao cần một hệ thống cảnh báo nguy cơ sức khoẻ cộng đồng từ tin tức báo chí ở Việt Nam."
 ---
 
 # Vì sao có dự án này
 
 ## Nỗi lo lặp lại mỗi năm
 
-Nếu bạn là phụ huynh có con nhỏ ở Việt Nam, lịch dịch bệnh trong năm gần như đã thuộc lòng:
+Nếu bạn là phụ huynh có con nhỏ ở Việt Nam, lịch mùa bệnh trong năm gần như đã thuộc lòng:
 
 | Tháng | Mùa dịch chính |
 |-------|----------------|
@@ -47,7 +47,7 @@ Vấn đề là: **không ai có thời gian đọc hết các nguồn này mỗ
 Đó là toàn bộ ý tưởng của Epidemic Monitor.
 
 ```
-20 từ khoá dịch bệnh tiếng Việt
+20 từ khoá sức khoẻ cộng đồng tiếng Việt
         ↓
 Quét các báo Việt Nam tin cậy (mỗi 6h)
         ↓
@@ -87,7 +87,9 @@ Hệ thống có nhiều lớp lọc:
 5. **Lớp dedup** — bài trùng URL bị loại.
 6. **Lớp per-capita** — alert level được normalize theo số ca / 1 triệu dân, không phải absolute count → tỉnh dày báo chí không bị inflate.
 
-Kết quả: nếu bạn thấy 5 báo cùng đưa tin về một sự kiện dịch bệnh ở Đồng Nai, **rất có thể đó là tin thật**. Nhưng vẫn nên đối chiếu với CDC tỉnh trước khi ra quyết định.
+Kết quả: nếu bạn thấy 5 báo cùng đưa tin về một sự kiện sức khoẻ cộng đồng ở Đồng Nai, **rất có thể đó là tin thật**. Nhưng vẫn nên đối chiếu với CDC tỉnh trước khi ra quyết định.
+
+Đây chính là phương pháp **Social Listening** — cách tiếp cận chuẩn mực mà WHO, US CDC, Google (Flu Trends), và Epic (Health Alerts) đã áp dụng để xây dựng cảnh báo nguy cơ sức khoẻ cộng đồng từ các nguồn tin không chính thống. Epic — công ty y tế số lớn nhất Mỹ với ~60% giường bệnh Mỹ — cũng chủ động đặt tên sản phẩm của họ là "Health Alerts" thay vì "Epidemic Map".
 
 ---
 

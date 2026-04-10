@@ -74,14 +74,29 @@ html, body {
 }
 
 .app-header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.app-header-logo { width: 30px; height: 30px; flex-shrink: 0; }
-.app-header-title-group { display: flex; align-items: center; min-width: 0; }
+.app-header-logo { width: 32px; height: 32px; flex-shrink: 0; }
+.app-header-title-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  line-height: 1.15;
+}
 .app-header-title {
   font-size: 15px;
   font-weight: 700;
   color: #0f172a;
   letter-spacing: 0.2px;
   white-space: nowrap;
+}
+.app-header-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
 }
 
 .app-header-disclaimer {
@@ -1043,6 +1058,9 @@ html, body {
   body.mobile-mode .app-header-title {
     font-size: 15px;
   }
+  body.mobile-mode .app-header-subtitle {
+    font-size: 10px;
+  }
   body.mobile-mode .app-header-tagline {
     font-size: 10px;
     white-space: nowrap;
@@ -1123,6 +1141,7 @@ html, body {
 /* Very narrow screens (<380px) — tighten everything further */
 @media (max-width: 379px) {
   body.mobile-mode .app-header-tagline { display: none; }
+  body.mobile-mode .app-header-subtitle { display: none; }
   body.mobile-mode .app-header-title { font-size: 14px; }
   body.mobile-mode .mobile-tab-btn-label { font-size: 9px; }
 }
